@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+import "ItemParam.proto";
+
+message ResinCard {
+  repeated ItemParam baseItemList = 1;
+  repeated ItemParam perDayItemList = 2;
+}

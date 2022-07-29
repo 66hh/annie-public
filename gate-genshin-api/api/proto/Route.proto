@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+import "RoutePoint.proto";
+
+message Route {
+  repeated RoutePoint route_points = 1;
+  uint32 route_type = 2;
+}

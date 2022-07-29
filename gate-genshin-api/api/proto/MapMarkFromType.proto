@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+enum MapMarkFromType {
+  NOE = 0;
+  MONSTER = 1;
+  QUEST = 2;
+}

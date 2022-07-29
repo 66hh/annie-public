@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+enum Operation {
+  Add = 0;
+  Mod = 1;
+  Del = 2;
+  Get = 3;
+}

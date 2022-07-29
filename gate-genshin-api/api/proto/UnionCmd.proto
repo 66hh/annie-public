@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+
+message UnionCmd {
+  uint32 message_id = 1;
+  bytes body = 2;
+}

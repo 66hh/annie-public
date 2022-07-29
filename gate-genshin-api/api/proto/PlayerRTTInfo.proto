@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+
+message PlayerRTTInfo {
+  uint32 uid = 1;
+  uint32 rtt = 2;
+}

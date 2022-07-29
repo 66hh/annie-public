@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+import "MaterialDeleteInfo.proto";
+
+message Material {
+  uint32 count = 1;
+  MaterialDeleteInfo delete_info = 2;
+}

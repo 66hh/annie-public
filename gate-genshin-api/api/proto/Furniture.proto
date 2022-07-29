@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+
+message Furniture {
+  uint32 count = 1;
+}

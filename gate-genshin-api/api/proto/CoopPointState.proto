@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+enum CoopPointState {
+  Unstarted = 0;
+  Started = 1;
+  Finished = 2;
+}

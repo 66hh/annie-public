@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+
+message FightPropPair {
+  uint32 prop_type = 1;
+  float prop_value = 2;
+}

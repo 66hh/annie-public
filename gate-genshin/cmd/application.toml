@@ -1,0 +1,22 @@
+[genshin]
+https_port = 443
+http_port_a = 80
+http_port_b = 8888
+kcp_addr = "192.168.31.222"
+kcp_port = 22103
+
+[logger]
+level = "DEBUG"
+method = "CONSOLE"
+track_line = true
+
+[air]
+addr = "air-service"
+port = 8086
+service_name = "genshin-gateway"
+
+[light]
+port = 10005
+
+[database]
+url = "mongodb://mongodb-service:27017"

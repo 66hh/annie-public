@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+enum InterOpType {
+  INTER_OP_FINISH = 0;
+  INTER_OP_START = 1;
+}

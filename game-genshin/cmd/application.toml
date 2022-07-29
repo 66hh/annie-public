@@ -1,0 +1,18 @@
+[genshin]
+resource_path = "C:/Users/FlourishingWorld/Desktop/GI/GameDataConfigTable"
+
+[logger]
+level = "DEBUG"
+method = "CONSOLE"
+track_line = true
+
+[air]
+addr = "air-service"
+port = 8086
+service_name = "game-genshin-app"
+
+[light]
+port = 10006
+
+[database]
+url = "mongodb://mongodb-service:27017"
