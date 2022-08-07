@@ -12,9 +12,9 @@ message StoreItemChangeNotify {
     NONE = 0;
     ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
-    CMD_ID = 689;
+    CMD_ID = 641;
   }
 
-  StoreType store_type = 1;
-  repeated Item item_list = 2;
+  StoreType store_type = 9;
+  repeated Item item_list = 3;
 }

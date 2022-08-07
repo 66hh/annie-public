@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+
+message ParamList {
+  repeated uint32 param_list_ = 1;
+}

@@ -34,7 +34,7 @@ func (c *Controller) query_cur_region(context *gin.Context) {
 		response = c.regionCurrBase64
 	}
 	if strings.Contains(versionName, "2.7.5") || strings.Contains(versionName, "2.8.") {
-		c.log.Debug("do genshin 2.8 rsa sign logic")
+		c.log.Debug("do genshin 2.8 rsa logic")
 		if context.Query("dispatchSeed") == "" {
 			rsp := &api.QueryCurRegionRspJson{
 				Content: response,
@@ -94,7 +94,7 @@ func (c *Controller) query_cur_region(context *gin.Context) {
 		}
 		signPrivkey, err := endec.RsaParsePrivKey(c.signRsaKey)
 		if err != nil {
-			c.log.Error("parse rsa pub key error: %v", err)
+			c.log.Error("parse rsa priv key error: %v", err)
 			return
 		}
 		signData, err := endec.RsaSign(regionInfo, signPrivkey)

@@ -201,32 +201,19 @@ func (c *Controller) apiVerify(context *gin.Context) {
 }
 
 func (c *Controller) v2Login(context *gin.Context) {
-	var data string = ""
-	if strings.Contains(context.Request.RequestURI, "?") {
-		// Windows
-		requestData := new(api.ComboTokenReqWin)
-		err := context.ShouldBindJSON(requestData)
-		if err != nil {
-			c.log.Error("parse ComboTokenReq error: %v", err)
-			return
-		}
-		data = requestData.Data
-	} else {
-		// Android
-		requestData := new(api.ComboTokenReqAndroid)
-		err := context.ShouldBindJSON(requestData)
-		if err != nil {
-			c.log.Error("parse ComboTokenReq error: %v", err)
-			return
-		}
-		data = requestData.Data
+	requestData := new(api.ComboTokenReq)
+	err := context.ShouldBindJSON(requestData)
+	if err != nil {
+		c.log.Error("parse ComboTokenReq error: %v", err)
+		return
 	}
+	data := requestData.Data
 	if len(data) == 0 {
 		c.log.Error("requestData.Data len == 0")
 		return
 	}
 	loginData := new(api.LoginTokenData)
-	err := json.Unmarshal([]byte(data), loginData)
+	err = json.Unmarshal([]byte(data), loginData)
 	if err != nil {
 		c.log.Error("Unmarshal LoginTokenData error: %v", err)
 		return
@@ -244,7 +231,7 @@ func (c *Controller) v2Login(context *gin.Context) {
 		context.JSON(http.StatusOK, responseData)
 		return
 	}
-	// 生产新的comboToken
+	// 生成新的comboToken
 	account.ComboToken = random.GetRandomByteHexStr(20)
 	_, err = c.dao.UpdateAccountFieldByFieldName("uid", account.Uid, "comboToken", account.ComboToken)
 	if err != nil {

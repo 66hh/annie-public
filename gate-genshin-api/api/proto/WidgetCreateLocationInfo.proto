@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+import "Vector.proto";
+
+message WidgetCreateLocationInfo {
+  Vector pos = 14;
+  Vector rot = 4;
+}

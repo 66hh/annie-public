@@ -9,10 +9,10 @@ import "CoopCg.proto";
 
 message CoopChapter {
   enum State {
-    CLOSE = 0;
-    COND_NOT_MEET = 1;
-    COND_MEET = 2;
-    ACCEPT = 3;
+    STATE_CLOSE = 0;
+    STATE_COND_NOT_MEET = 1;
+    STATE_COND_MEET = 2;
+    STATE_ACCEPT = 3;
   }
 
   uint32 id = 1;

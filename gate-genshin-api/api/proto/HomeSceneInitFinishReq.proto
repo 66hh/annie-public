@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+// CmdId: 4552
+// EnetChannelId: 0
+// EnetIsReliable: true
+// IsAllowClient: true
+message HomeSceneInitFinishReq {
+}

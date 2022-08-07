@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+import "FireWorkInstance.proto";
+
+message FireWorkData {
+  uint32 id = 1;
+  repeated FireWorkInstance fireWorkInstance = 2;
+}

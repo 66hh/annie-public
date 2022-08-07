@@ -3,10 +3,10 @@ syntax = "proto3";
 package proto;
 option go_package = "./;proto";
 
-import "AbilityScalarValueEntry.proto";
 import "AbilityAppliedAbility.proto";
 import "AbilityAppliedModifier.proto";
 import "AbilityMixinRecoverInfo.proto";
+import "AbilityScalarValueEntry.proto";
 
 message AbilitySyncStateInfo {
   bool is_inited = 1;

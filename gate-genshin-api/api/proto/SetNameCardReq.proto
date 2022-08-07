@@ -7,12 +7,12 @@ option go_package = "./;proto";
 message SetNameCardReq {
   enum CmdId {
     option allow_alias = true;
-    ENET_CHANNEL_ID = 0;
     NONE = 0;
+    ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
     IS_ALLOW_CLIENT = 1;
-    CMD_ID = 4016;
+    CMD_ID = 4006;
   }
 
-  uint32 name_card_id = 1;
+  uint32 name_card_id = 4;
 }

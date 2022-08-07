@@ -15,5 +15,5 @@ message MotionInfo {
   Vector ref_pos = 6;
   uint32 ref_id = 7;
   uint32 scene_time = 8;
-  uint32 interval_velocity = 9;
+  uint64 interval_velocity = 9;
 }

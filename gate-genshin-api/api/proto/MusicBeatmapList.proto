@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+import "MusicBeatmapNote.proto";
+
+message MusicBeatmapList {
+  repeated MusicBeatmapNote beatmap_note_list = 1;
+}

@@ -1,6 +1,10 @@
 package rpc
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/binary"
+	"flswld.com/common/utils/endec"
 	"flswld.com/gate-genshin-api/api/proto"
 	"gate-genshin/kcp"
 	"gate-genshin/net"
@@ -92,6 +96,73 @@ func (r *RpcManager) getPlayerToken(convId uint64, req *proto.GetPlayerTokenReq)
 	}
 	split := strings.Split(addr, ":")
 	rsp.ClientIpStr = split[0]
+	if req.GetKeyId() > 0 {
+		// pre check
+		r.log.Debug("do genshin 2.8 rsa logic")
+		var encPubPrivKey []byte = nil
+		if req.GetKeyId() == 3 {
+			// 国际服
+			encPubPrivKey = r.encRsaKey
+		} else {
+			// 国服
+			r.log.Error("current region enc key not exist")
+			return nil
+		}
+		pubKey, err := endec.RsaParsePubKeyByPrivKey(encPubPrivKey)
+		if err != nil {
+			r.log.Error("parse rsa pub key error: %v", err)
+			return nil
+		}
+		signPrivkey, err := endec.RsaParsePrivKey(r.signRsaKey)
+		if err != nil {
+			r.log.Error("parse rsa priv key error: %v", err)
+			return nil
+		}
+		clientSeedBase64 := req.GetClientSeed()
+		clientSeedEnc, err := base64.StdEncoding.DecodeString(clientSeedBase64)
+		if err != nil {
+			r.log.Error("parse client seed base64 error: %v", err)
+			return nil
+		}
+		// create error rsp info
+		clientSeedEncCopy := make([]byte, len(clientSeedEnc))
+		copy(clientSeedEncCopy, clientSeedEnc)
+		endec.Xor(clientSeedEncCopy, []byte{0x9f, 0x26, 0xb2, 0x17, 0x61, 0x5f, 0xc8, 0x00})
+		rsp.EncryptedSeed = base64.StdEncoding.EncodeToString(clientSeedEncCopy)
+		rsp.SeedSignature = "bm90aGluZyBoZXJl"
+		// do
+		clientSeed, err := endec.RsaDecrypt(clientSeedEnc, signPrivkey)
+		if err != nil {
+			r.log.Error("rsa dec error: %v", err)
+			return rsp
+		}
+		clientSeedUint64 := uint64(0)
+		err = binary.Read(bytes.NewReader(clientSeed), binary.BigEndian, &clientSeedUint64)
+		if err != nil {
+			r.log.Error("parse client seed to uint64 error: %v", err)
+			return rsp
+		}
+		seedUint64 := uint64(11468049314633205968) ^ clientSeedUint64
+		seedBuf := new(bytes.Buffer)
+		err = binary.Write(seedBuf, binary.BigEndian, seedUint64)
+		if err != nil {
+			r.log.Error("conv seed uint64 to bytes error: %v", err)
+			return rsp
+		}
+		seed := seedBuf.Bytes()
+		seedEnc, err := endec.RsaEncrypt(seed, pubKey)
+		if err != nil {
+			r.log.Error("rsa enc error: %v", err)
+			return rsp
+		}
+		seedSign, err := endec.RsaSign(seed, signPrivkey)
+		if err != nil {
+			r.log.Error("rsa sign error: %v", err)
+			return rsp
+		}
+		rsp.EncryptedSeed = base64.StdEncoding.EncodeToString(seedEnc)
+		rsp.SeedSignature = base64.StdEncoding.EncodeToString(seedSign)
+	}
 	return rsp
 }
 
@@ -121,10 +192,10 @@ func (r *RpcManager) playerLogin(convId uint64, req *proto.PlayerLoginReq) (rsp 
 	rsp.IsUseAbilityHash = true
 	rsp.AbilityHashCode = 1844674
 	rsp.GameBiz = "hk4e_global"
-	rsp.ClientDataVersion = uint32(r.regionCurr.RegionInfo.ClientDataVersion)
-	rsp.ClientSilenceDataVersion = uint32(r.regionCurr.RegionInfo.ClientSilenceDataVersion)
-	rsp.ClientMd5 = r.regionCurr.RegionInfo.ClientDataMd5
-	rsp.ClientSilenceMd5 = r.regionCurr.RegionInfo.ClientSilenceDataMd5
+	rsp.ClientDataVersion = r.regionCurr.RegionInfo.ClientDataVersion
+	rsp.ClientSilenceDataVersion = r.regionCurr.RegionInfo.ClientSilenceDataVersion
+	rsp.ClientMd_5 = r.regionCurr.RegionInfo.ClientDataMd5
+	rsp.ClientSilenceMd_5 = r.regionCurr.RegionInfo.ClientSilenceDataMd5
 	rsp.ResVersionConfig = r.regionCurr.RegionInfo.ResVersionConfig
 	rsp.ClientVersionSuffix = r.regionCurr.RegionInfo.ClientVersionSuffix
 	rsp.ClientSilenceVersionSuffix = r.regionCurr.RegionInfo.ClientSilenceVersionSuffix

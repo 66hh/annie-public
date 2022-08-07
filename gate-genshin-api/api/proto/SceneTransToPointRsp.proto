@@ -10,10 +10,10 @@ message SceneTransToPointRsp {
     NONE = 0;
     ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
-    CMD_ID = 232;
+    CMD_ID = 263;
   }
 
-  int32 retcode = 1;
-  uint32 scene_id = 2;
-  uint32 point_id = 3;
+  int32 retcode = 4;
+  uint32 scene_id = 11;
+  uint32 point_id = 13;
 }

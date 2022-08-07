@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+message BattlePassProduct {
+  string normal_product_id = 8;
+  string extra_product_id = 4;
+  string upgrade_product_id = 14;
+}

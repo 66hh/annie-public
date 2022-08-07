@@ -104,7 +104,7 @@ func (x *OnlinePlayerInfo) GetMpSettingType() MpSettingType {
 	if x != nil {
 		return x.MpSettingType
 	}
-	return MpSettingType_MP_SETTING_NO_ENTER
+	return MpSettingType_MP_SETTING_TYPE_NO_ENTER
 }
 
 func (x *OnlinePlayerInfo) GetCurPlayerNumInWorld() uint32 {

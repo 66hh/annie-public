@@ -10,8 +10,8 @@ message SetPlayerPropRsp {
     NONE = 0;
     ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
-    CMD_ID = 136;
+    CMD_ID = 197;
   }
 
-  int32 retcode = 1;
+  int32 retcode = 5;
 }

@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+// CmdId: 4542
+// EnetChannelId: 0
+// EnetIsReliable: true
+message HomeBlockNotify {
+  uint32 end_time = 7;
+}

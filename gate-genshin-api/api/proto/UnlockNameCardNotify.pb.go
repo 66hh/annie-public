@@ -20,64 +20,15 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type UnlockNameCardNotify_CmdId int32
-
-const (
-	UnlockNameCardNotify_NONE             UnlockNameCardNotify_CmdId = 0
-	UnlockNameCardNotify_ENET_CHANNEL_ID  UnlockNameCardNotify_CmdId = 0
-	UnlockNameCardNotify_ENET_IS_RELIABLE UnlockNameCardNotify_CmdId = 1
-	UnlockNameCardNotify_CMD_ID           UnlockNameCardNotify_CmdId = 4092
-)
-
-// Enum value maps for UnlockNameCardNotify_CmdId.
-var (
-	UnlockNameCardNotify_CmdId_name = map[int32]string{
-		0: "NONE",
-		// Duplicate value: 0: "ENET_CHANNEL_ID",
-		1:    "ENET_IS_RELIABLE",
-		4092: "CMD_ID",
-	}
-	UnlockNameCardNotify_CmdId_value = map[string]int32{
-		"NONE":             0,
-		"ENET_CHANNEL_ID":  0,
-		"ENET_IS_RELIABLE": 1,
-		"CMD_ID":           4092,
-	}
-)
-
-func (x UnlockNameCardNotify_CmdId) Enum() *UnlockNameCardNotify_CmdId {
-	p := new(UnlockNameCardNotify_CmdId)
-	*p = x
-	return p
-}
-
-func (x UnlockNameCardNotify_CmdId) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (UnlockNameCardNotify_CmdId) Descriptor() protoreflect.EnumDescriptor {
-	return file_UnlockNameCardNotify_proto_enumTypes[0].Descriptor()
-}
-
-func (UnlockNameCardNotify_CmdId) Type() protoreflect.EnumType {
-	return &file_UnlockNameCardNotify_proto_enumTypes[0]
-}
-
-func (x UnlockNameCardNotify_CmdId) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use UnlockNameCardNotify_CmdId.Descriptor instead.
-func (UnlockNameCardNotify_CmdId) EnumDescriptor() ([]byte, []int) {
-	return file_UnlockNameCardNotify_proto_rawDescGZIP(), []int{0, 0}
-}
-
+// CmdId: 4001
+// EnetChannelId: 0
+// EnetIsReliable: true
 type UnlockNameCardNotify struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	NameCardId uint32 `protobuf:"varint,1,opt,name=name_card_id,json=nameCardId,proto3" json:"name_card_id,omitempty"`
+	NameCardId uint32 `protobuf:"varint,14,opt,name=name_card_id,json=nameCardId,proto3" json:"name_card_id,omitempty"`
 }
 
 func (x *UnlockNameCardNotify) Reset() {
@@ -124,15 +75,10 @@ var File_UnlockNameCardNotify_proto protoreflect.FileDescriptor
 var file_UnlockNameCardNotify_proto_rawDesc = []byte{
 	0x0a, 0x1a, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x4e, 0x61, 0x6d, 0x65, 0x43, 0x61, 0x72, 0x64,
 	0x4e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x05, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x22, 0x87, 0x01, 0x0a, 0x14, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x4e, 0x61,
-	0x6d, 0x65, 0x43, 0x61, 0x72, 0x64, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x12, 0x20, 0x0a, 0x0c,
-	0x6e, 0x61, 0x6d, 0x65, 0x5f, 0x63, 0x61, 0x72, 0x64, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01,
-	0x28, 0x0d, 0x52, 0x0a, 0x6e, 0x61, 0x6d, 0x65, 0x43, 0x61, 0x72, 0x64, 0x49, 0x64, 0x22, 0x4d,
-	0x0a, 0x05, 0x43, 0x6d, 0x64, 0x49, 0x64, 0x12, 0x08, 0x0a, 0x04, 0x4e, 0x4f, 0x4e, 0x45, 0x10,
-	0x00, 0x12, 0x13, 0x0a, 0x0f, 0x45, 0x4e, 0x45, 0x54, 0x5f, 0x43, 0x48, 0x41, 0x4e, 0x4e, 0x45,
-	0x4c, 0x5f, 0x49, 0x44, 0x10, 0x00, 0x12, 0x14, 0x0a, 0x10, 0x45, 0x4e, 0x45, 0x54, 0x5f, 0x49,
-	0x53, 0x5f, 0x52, 0x45, 0x4c, 0x49, 0x41, 0x42, 0x4c, 0x45, 0x10, 0x01, 0x12, 0x0b, 0x0a, 0x06,
-	0x43, 0x4d, 0x44, 0x5f, 0x49, 0x44, 0x10, 0xfc, 0x1f, 0x1a, 0x02, 0x10, 0x01, 0x42, 0x0a, 0x5a,
+	0x6f, 0x74, 0x6f, 0x22, 0x38, 0x0a, 0x14, 0x55, 0x6e, 0x6c, 0x6f, 0x63, 0x6b, 0x4e, 0x61, 0x6d,
+	0x65, 0x43, 0x61, 0x72, 0x64, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x79, 0x12, 0x20, 0x0a, 0x0c, 0x6e,
+	0x61, 0x6d, 0x65, 0x5f, 0x63, 0x61, 0x72, 0x64, 0x5f, 0x69, 0x64, 0x18, 0x0e, 0x20, 0x01, 0x28,
+	0x0d, 0x52, 0x0a, 0x6e, 0x61, 0x6d, 0x65, 0x43, 0x61, 0x72, 0x64, 0x49, 0x64, 0x42, 0x0a, 0x5a,
 	0x08, 0x2e, 0x2f, 0x3b, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
 	0x33,
 }
@@ -149,11 +95,9 @@ func file_UnlockNameCardNotify_proto_rawDescGZIP() []byte {
 	return file_UnlockNameCardNotify_proto_rawDescData
 }
 
-var file_UnlockNameCardNotify_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_UnlockNameCardNotify_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_UnlockNameCardNotify_proto_goTypes = []interface{}{
-	(UnlockNameCardNotify_CmdId)(0), // 0: proto.UnlockNameCardNotify.CmdId
-	(*UnlockNameCardNotify)(nil),    // 1: proto.UnlockNameCardNotify
+	(*UnlockNameCardNotify)(nil), // 0: proto.UnlockNameCardNotify
 }
 var file_UnlockNameCardNotify_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -187,14 +131,13 @@ func file_UnlockNameCardNotify_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_UnlockNameCardNotify_proto_rawDesc,
-			NumEnums:      1,
+			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_UnlockNameCardNotify_proto_goTypes,
 		DependencyIndexes: file_UnlockNameCardNotify_proto_depIdxs,
-		EnumInfos:         file_UnlockNameCardNotify_proto_enumTypes,
 		MessageInfos:      file_UnlockNameCardNotify_proto_msgTypes,
 	}.Build()
 	File_UnlockNameCardNotify_proto = out.File

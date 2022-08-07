@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-import "Birthday.proto";
-
 package proto;
 option go_package = "./;proto";
+
+import "Birthday.proto";
 
 message SetPlayerBirthdayRsp {
   enum CmdId {
@@ -11,9 +11,9 @@ message SetPlayerBirthdayRsp {
     NONE = 0;
     ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
-    CMD_ID = 4091;
+    CMD_ID = 4030;
   }
 
-  int32 retcode = 1;
-  Birthday birthday = 2;
+  int32 retcode = 12;
+  Birthday birthday = 14;
 }

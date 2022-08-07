@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+import "AvatarExpeditionInfo.proto";
+import "ItemParam.proto";
+
+// CmdId: 1646
+// EnetChannelId: 0
+// EnetIsReliable: true
+message AvatarExpeditionGetRewardRsp {
+  int32 retcode = 15;
+  map<uint64, AvatarExpeditionInfo> expedition_info_map = 5;
+  repeated ItemParam item_list = 6;
+  repeated ItemParam BNFDDKNNJJH = 2;
+}

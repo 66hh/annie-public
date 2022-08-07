@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+import "Vector.proto";
+
+message MarkEntityInMinMapNotify {
+  enum CmdId {
+    option allow_alias = true;
+    NONE = 0;
+    ENET_CHANNEL_ID = 0;
+    ENET_IS_RELIABLE = 1;
+    CMD_ID = 202;
+  }
+
+  uint32 entity_id = 5;
+  Vector position = 13;
+  uint32 monster_id = 6;
+}

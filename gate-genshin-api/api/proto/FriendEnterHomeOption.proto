@@ -4,7 +4,7 @@ package proto;
 option go_package = "./;proto";
 
 enum FriendEnterHomeOption {
-  NEED_CONFIRM = 0;
-  REFUSE = 1;
-  DIRECT = 2;
+  FRIEND_ENTER_HOME_OPTION_NEED_CONFIRM = 0;
+  FRIEND_ENTER_HOME_OPTION_REFUSE = 1;
+  FRIEND_ENTER_HOME_OPTION_DIRECT = 2;
 }

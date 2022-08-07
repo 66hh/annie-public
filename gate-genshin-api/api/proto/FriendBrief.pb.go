@@ -127,7 +127,7 @@ func (x *FriendBrief) GetOnlineState() FriendOnlineState {
 	if x != nil {
 		return x.OnlineState
 	}
-	return FriendOnlineState_FREIEND_DISCONNECT
+	return FriendOnlineState_FRIEND_ONLINE_STATE_FREIEND_DISCONNECT
 }
 
 func (x *FriendBrief) GetParam() uint32 {
@@ -204,7 +204,7 @@ func (x *FriendBrief) GetFriendEnterHomeOption() FriendEnterHomeOption {
 	if x != nil {
 		return x.FriendEnterHomeOption
 	}
-	return FriendEnterHomeOption_NEED_CONFIRM
+	return FriendEnterHomeOption_FRIEND_ENTER_HOME_OPTION_NEED_CONFIRM
 }
 
 func (x *FriendBrief) GetProfilePicture() *ProfilePicture {
@@ -232,7 +232,7 @@ func (x *FriendBrief) GetPlatformType() PlatformType {
 	if x != nil {
 		return x.PlatformType
 	}
-	return PlatformType_EDITOR
+	return PlatformType_PLATFORM_TYPE_EDITOR
 }
 
 var File_FriendBrief_proto protoreflect.FileDescriptor

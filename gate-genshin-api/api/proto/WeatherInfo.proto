@@ -3,6 +3,7 @@ syntax = "proto3";
 package proto;
 option go_package = "./;proto";
 
+
 message WeatherInfo {
   uint32 weather_area_id = 1;
 }

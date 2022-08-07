@@ -11,18 +11,26 @@ type GameDataConfig struct {
 	conf           *config.Config
 	binPrefix      string
 	excelBinPrefix string
+	GameDepot      *GameDepot
 	// 配置表
 	// BinOutput
 	// 技能列表
 	AbilityEmbryos    map[string]*AbilityEmbryoEntry
 	OpenConfigEntries map[string]*OpenConfigEntry
 	// ExcelBinOutput
-	FetterDataMap       map[uint32]*FetterData
-	AvatarFetterDataMap map[uint32][]uint32
+	FetterDataMap       map[int32]*FetterData
+	AvatarFetterDataMap map[int32][]int32
 	// 资源
 	// 场景传送点
 	ScenePointEntries map[string]*ScenePointEntry
-	ScenePointIdList  []uint32
+	ScenePointIdList  []int32
+	// 角色
+	AvatarDataMap map[int32]*AvatarData
+	// 道具
+	ItemDataMap map[int32]*ItemData
+	// 角色技能
+	AvatarSkillDataMap      map[int32]*AvatarSkillData
+	AvatarSkillDepotDataMap map[int32]*AvatarSkillDepotData
 }
 
 func NewGameDataConfig(log *logger.Logger, conf *config.Config) (r *GameDataConfig) {
@@ -35,6 +43,7 @@ func NewGameDataConfig(log *logger.Logger, conf *config.Config) (r *GameDataConf
 }
 
 func (g *GameDataConfig) load() {
+	g.loadGameDepot()
 	// 技能列表
 	g.loadAbilityEmbryos()
 	g.loadOpenConfig()
@@ -42,6 +51,13 @@ func (g *GameDataConfig) load() {
 	g.loadFetterData()
 	// 场景传送点
 	g.loadScenePoints()
+	// 角色
+	g.loadAvatarData()
+	// 道具
+	g.loadItemData()
+	// 角色技能
+	g.loadAvatarSkillData()
+	g.loadAvatarSkillDepotData()
 }
 
 func (g *GameDataConfig) LoadAll() {

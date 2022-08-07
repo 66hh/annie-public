@@ -2,7 +2,7 @@
 https_port = 443
 http_port_a = 80
 http_port_b = 8888
-kcp_addr = "192.168.31.222"
+kcp_addr = "172.16.2.155"
 kcp_port = 22103
 
 [logger]

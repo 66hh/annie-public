@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+
+message ParentQuestRandomInfo {
+  uint32 entrance_id = 1;
+  uint32 template_id = 2;
+  repeated uint32 factor_list = 3;
+}

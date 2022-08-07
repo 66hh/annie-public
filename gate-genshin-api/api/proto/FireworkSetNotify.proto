@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+import "FireworkSetData.proto";
+
+// CmdId: 5934
+// EnetChannelId: 0
+// EnetIsReliable: true
+message FireworkSetNotify {
+  uint32 code = 1;
+  repeated FireworkSetData data = 9;
+}

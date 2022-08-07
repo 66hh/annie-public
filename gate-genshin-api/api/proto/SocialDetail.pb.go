@@ -144,7 +144,7 @@ func (x *SocialDetail) GetOnlineState() FriendOnlineState {
 	if x != nil {
 		return x.OnlineState
 	}
-	return FriendOnlineState_FREIEND_DISCONNECT
+	return FriendOnlineState_FRIEND_ONLINE_STATE_FREIEND_DISCONNECT
 }
 
 func (x *SocialDetail) GetParam() uint32 {
@@ -249,7 +249,7 @@ func (x *SocialDetail) GetFriendEnterHomeOption() FriendEnterHomeOption {
 	if x != nil {
 		return x.FriendEnterHomeOption
 	}
-	return FriendEnterHomeOption_NEED_CONFIRM
+	return FriendEnterHomeOption_FRIEND_ENTER_HOME_OPTION_NEED_CONFIRM
 }
 
 func (x *SocialDetail) GetProfilePicture() *ProfilePicture {

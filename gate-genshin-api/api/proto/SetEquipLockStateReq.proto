@@ -7,13 +7,13 @@ option go_package = "./;proto";
 message SetEquipLockStateReq {
   enum CmdId {
     option allow_alias = true;
-    ENET_CHANNEL_ID = 0;
     NONE = 0;
+    ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
     IS_ALLOW_CLIENT = 1;
-    CMD_ID = 605;
+    CMD_ID = 604;
   }
 
-  uint64 target_equip_guid = 1;
-  bool is_locked = 2;
+  uint64 target_equip_guid = 10;
+  bool is_locked = 11;
 }

@@ -10,9 +10,9 @@ message EntityFightPropUpdateNotify {
     NONE = 0;
     ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
-    CMD_ID = 1284;
+    CMD_ID = 1237;
   }
 
   uint32 entity_id = 1;
-  map<uint32, float> fight_prop_map = 2;
+  map<uint32, float> fight_prop_map = 8;
 }

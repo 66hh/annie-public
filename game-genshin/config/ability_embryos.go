@@ -11,7 +11,8 @@ type AvatarConfigAbility struct {
 }
 
 type AvatarConfig struct {
-	Abilities []*AvatarConfigAbility `json:"abilities"`
+	Abilities       []*AvatarConfigAbility `json:"abilities"`
+	TargetAbilities []*AvatarConfigAbility `json:"targetAbilities"`
 }
 
 type AbilityEmbryoEntry struct {

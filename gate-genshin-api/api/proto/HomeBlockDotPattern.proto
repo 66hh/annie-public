@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+message HomeBlockDotPattern {
+  uint32 height = 8;
+  uint32 width = 4;
+  bytes data = 14;
+}

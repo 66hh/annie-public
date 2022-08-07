@@ -6,12 +6,12 @@ import (
 )
 
 type FetterData struct {
-	AvatarId uint32 `json:"AvatarId"`
-	FetterId uint32 `json:"FetterId"`
+	AvatarId int32 `json:"avatarId"`
+	FetterId int32 `json:"fetterId"`
 }
 
 func (g *GameDataConfig) loadFetterData() {
-	g.FetterDataMap = make(map[uint32]*FetterData)
+	g.FetterDataMap = make(map[int32]*FetterData)
 	fileNameList := []string{"FetterInfoExcelConfigData.json", "FettersExcelConfigData.json", "FetterStoryExcelConfigData.json", "PhotographExpressionExcelConfigData.json", "PhotographPosenameExcelConfigData.json"}
 	for _, fileName := range fileNameList {
 		fileData, err := ioutil.ReadFile(g.excelBinPrefix + fileName)
@@ -41,11 +41,11 @@ func (g *GameDataConfig) loadFetterData() {
 		}
 	}
 	g.log.Info("load %v FetterData", len(g.FetterDataMap))
-	g.AvatarFetterDataMap = make(map[uint32][]uint32)
+	g.AvatarFetterDataMap = make(map[int32][]int32)
 	for _, v := range g.FetterDataMap {
 		avatarFetterIdList, exist := g.AvatarFetterDataMap[v.AvatarId]
 		if !exist {
-			avatarFetterIdList = make([]uint32, 0)
+			avatarFetterIdList = make([]int32, 0)
 		}
 		avatarFetterIdList = append(avatarFetterIdList, v.FetterId)
 		g.AvatarFetterDataMap[v.AvatarId] = avatarFetterIdList

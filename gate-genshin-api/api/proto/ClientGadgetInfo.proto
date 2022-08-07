@@ -3,6 +3,7 @@ syntax = "proto3";
 package proto;
 option go_package = "./;proto";
 
+
 message ClientGadgetInfo {
   uint32 camp_id = 1;
   uint32 camp_type = 2;

@@ -2,18 +2,18 @@ package dao
 
 import (
 	"context"
-	"game-genshin/entity"
+	"game-genshin/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func (d *Dao) InsertPlayer(player *entity.Player) error {
+func (d *Dao) InsertPlayer(player *model.Player) error {
 	db := d.db.Collection("player")
 	_, err := db.InsertOne(context.TODO(), player)
 	return err
 }
 
-func (d *Dao) InsertPlayerList(playerList []*entity.Player) error {
+func (d *Dao) InsertPlayerList(playerList []*model.Player) error {
 	if len(playerList) == 0 {
 		return nil
 	}
@@ -47,7 +47,7 @@ func (d *Dao) DeletePlayerList(playerIDList []uint32) error {
 	return err
 }
 
-func (d *Dao) UpdatePlayer(player *entity.Player) error {
+func (d *Dao) UpdatePlayer(player *model.Player) error {
 	db := d.db.Collection("player")
 	_, err := db.UpdateOne(
 		context.TODO(),
@@ -57,7 +57,7 @@ func (d *Dao) UpdatePlayer(player *entity.Player) error {
 	return err
 }
 
-func (d *Dao) UpdatePlayerList(playerList []*entity.Player) error {
+func (d *Dao) UpdatePlayerList(playerList []*model.Player) error {
 	if len(playerList) == 0 {
 		return nil
 	}
@@ -71,13 +71,13 @@ func (d *Dao) UpdatePlayerList(playerList []*entity.Player) error {
 	return err
 }
 
-func (d *Dao) QueryPlayerByID(playerID uint32) (*entity.Player, error) {
+func (d *Dao) QueryPlayerByID(playerID uint32) (*model.Player, error) {
 	db := d.db.Collection("player")
 	result := db.FindOne(
 		context.TODO(),
 		bson.D{{"playerID", playerID}},
 	)
-	item := new(entity.Player)
+	item := new(model.Player)
 	err := result.Decode(item)
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (d *Dao) QueryPlayerByID(playerID uint32) (*entity.Player, error) {
 	return item, nil
 }
 
-func (d *Dao) QueryPlayerList() ([]*entity.Player, error) {
+func (d *Dao) QueryPlayerList() ([]*model.Player, error) {
 	db := d.db.Collection("player")
 	find, err := db.Find(
 		context.TODO(),
@@ -94,9 +94,9 @@ func (d *Dao) QueryPlayerList() ([]*entity.Player, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := make([]*entity.Player, 0)
+	result := make([]*model.Player, 0)
 	for find.Next(context.TODO()) {
-		item := new(entity.Player)
+		item := new(model.Player)
 		err = find.Decode(item)
 		if err != nil {
 			return nil, err

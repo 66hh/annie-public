@@ -20,67 +20,16 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type AvatarPromoteReq_CmdId int32
-
-const (
-	AvatarPromoteReq_ENET_CHANNEL_ID  AvatarPromoteReq_CmdId = 0
-	AvatarPromoteReq_NONE             AvatarPromoteReq_CmdId = 0
-	AvatarPromoteReq_ENET_IS_RELIABLE AvatarPromoteReq_CmdId = 1
-	AvatarPromoteReq_IS_ALLOW_CLIENT  AvatarPromoteReq_CmdId = 1
-	AvatarPromoteReq_CMD_ID           AvatarPromoteReq_CmdId = 1692
-)
-
-// Enum value maps for AvatarPromoteReq_CmdId.
-var (
-	AvatarPromoteReq_CmdId_name = map[int32]string{
-		0: "ENET_CHANNEL_ID",
-		// Duplicate value: 0: "NONE",
-		1: "ENET_IS_RELIABLE",
-		// Duplicate value: 1: "IS_ALLOW_CLIENT",
-		1692: "CMD_ID",
-	}
-	AvatarPromoteReq_CmdId_value = map[string]int32{
-		"ENET_CHANNEL_ID":  0,
-		"NONE":             0,
-		"ENET_IS_RELIABLE": 1,
-		"IS_ALLOW_CLIENT":  1,
-		"CMD_ID":           1692,
-	}
-)
-
-func (x AvatarPromoteReq_CmdId) Enum() *AvatarPromoteReq_CmdId {
-	p := new(AvatarPromoteReq_CmdId)
-	*p = x
-	return p
-}
-
-func (x AvatarPromoteReq_CmdId) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (AvatarPromoteReq_CmdId) Descriptor() protoreflect.EnumDescriptor {
-	return file_AvatarPromoteReq_proto_enumTypes[0].Descriptor()
-}
-
-func (AvatarPromoteReq_CmdId) Type() protoreflect.EnumType {
-	return &file_AvatarPromoteReq_proto_enumTypes[0]
-}
-
-func (x AvatarPromoteReq_CmdId) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use AvatarPromoteReq_CmdId.Descriptor instead.
-func (AvatarPromoteReq_CmdId) EnumDescriptor() ([]byte, []int) {
-	return file_AvatarPromoteReq_proto_rawDescGZIP(), []int{0, 0}
-}
-
+// CmdId: 1711
+// EnetChannelId: 0
+// EnetIsReliable: true
+// IsAllowClient: true
 type AvatarPromoteReq struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Guid uint64 `protobuf:"varint,1,opt,name=guid,proto3" json:"guid,omitempty"`
+	Guid uint64 `protobuf:"varint,9,opt,name=guid,proto3" json:"guid,omitempty"`
 }
 
 func (x *AvatarPromoteReq) Reset() {
@@ -127,16 +76,10 @@ var File_AvatarPromoteReq_proto protoreflect.FileDescriptor
 var file_AvatarPromoteReq_proto_rawDesc = []byte{
 	0x0a, 0x16, 0x41, 0x76, 0x61, 0x74, 0x61, 0x72, 0x50, 0x72, 0x6f, 0x6d, 0x6f, 0x74, 0x65, 0x52,
 	0x65, 0x71, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x05, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22,
-	0x8a, 0x01, 0x0a, 0x10, 0x41, 0x76, 0x61, 0x74, 0x61, 0x72, 0x50, 0x72, 0x6f, 0x6d, 0x6f, 0x74,
-	0x65, 0x52, 0x65, 0x71, 0x12, 0x12, 0x0a, 0x04, 0x67, 0x75, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01,
-	0x28, 0x04, 0x52, 0x04, 0x67, 0x75, 0x69, 0x64, 0x22, 0x62, 0x0a, 0x05, 0x43, 0x6d, 0x64, 0x49,
-	0x64, 0x12, 0x13, 0x0a, 0x0f, 0x45, 0x4e, 0x45, 0x54, 0x5f, 0x43, 0x48, 0x41, 0x4e, 0x4e, 0x45,
-	0x4c, 0x5f, 0x49, 0x44, 0x10, 0x00, 0x12, 0x08, 0x0a, 0x04, 0x4e, 0x4f, 0x4e, 0x45, 0x10, 0x00,
-	0x12, 0x14, 0x0a, 0x10, 0x45, 0x4e, 0x45, 0x54, 0x5f, 0x49, 0x53, 0x5f, 0x52, 0x45, 0x4c, 0x49,
-	0x41, 0x42, 0x4c, 0x45, 0x10, 0x01, 0x12, 0x13, 0x0a, 0x0f, 0x49, 0x53, 0x5f, 0x41, 0x4c, 0x4c,
-	0x4f, 0x57, 0x5f, 0x43, 0x4c, 0x49, 0x45, 0x4e, 0x54, 0x10, 0x01, 0x12, 0x0b, 0x0a, 0x06, 0x43,
-	0x4d, 0x44, 0x5f, 0x49, 0x44, 0x10, 0x9c, 0x0d, 0x1a, 0x02, 0x10, 0x01, 0x42, 0x0a, 0x5a, 0x08,
-	0x2e, 0x2f, 0x3b, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x26, 0x0a, 0x10, 0x41, 0x76, 0x61, 0x74, 0x61, 0x72, 0x50, 0x72, 0x6f, 0x6d, 0x6f, 0x74, 0x65,
+	0x52, 0x65, 0x71, 0x12, 0x12, 0x0a, 0x04, 0x67, 0x75, 0x69, 0x64, 0x18, 0x09, 0x20, 0x01, 0x28,
+	0x04, 0x52, 0x04, 0x67, 0x75, 0x69, 0x64, 0x42, 0x0a, 0x5a, 0x08, 0x2e, 0x2f, 0x3b, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -151,11 +94,9 @@ func file_AvatarPromoteReq_proto_rawDescGZIP() []byte {
 	return file_AvatarPromoteReq_proto_rawDescData
 }
 
-var file_AvatarPromoteReq_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_AvatarPromoteReq_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_AvatarPromoteReq_proto_goTypes = []interface{}{
-	(AvatarPromoteReq_CmdId)(0), // 0: proto.AvatarPromoteReq.CmdId
-	(*AvatarPromoteReq)(nil),    // 1: proto.AvatarPromoteReq
+	(*AvatarPromoteReq)(nil), // 0: proto.AvatarPromoteReq
 }
 var file_AvatarPromoteReq_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -189,14 +130,13 @@ func file_AvatarPromoteReq_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_AvatarPromoteReq_proto_rawDesc,
-			NumEnums:      1,
+			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_AvatarPromoteReq_proto_goTypes,
 		DependencyIndexes: file_AvatarPromoteReq_proto_depIdxs,
-		EnumInfos:         file_AvatarPromoteReq_proto_enumTypes,
 		MessageInfos:      file_AvatarPromoteReq_proto_msgTypes,
 	}.Build()
 	File_AvatarPromoteReq_proto = out.File

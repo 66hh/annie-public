@@ -3,7 +3,6 @@ syntax = "proto3";
 package proto;
 option go_package = "./;proto";
 
-
 message AbilityAttachedModifier {
   bool is_invalid = 1;
   uint32 owner_entity_id = 2;

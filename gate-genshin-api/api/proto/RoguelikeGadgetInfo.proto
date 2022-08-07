@@ -3,6 +3,7 @@ syntax = "proto3";
 package proto;
 option go_package = "./;proto";
 
+
 message RoguelikeGadgetInfo {
   uint32 cell_config_id = 1;
   uint32 cell_type = 2;

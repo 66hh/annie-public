@@ -43,6 +43,8 @@ type RpcManager struct {
 	kcpEventInput   chan *net.KcpEvent
 	kcpEventOutput  chan *net.KcpEvent
 	regionCurr      *proto.QueryCurrRegionHttpRsp
+	signRsaKey      []byte
+	encRsaKey       []byte
 }
 
 func NewRpcManager(conf *config.Config, log *logger.Logger, dao *dao.Dao, gameServiceConsumer *light.Consumer, protoMsgInput chan *net.ProtoMsg, protoMsgOutput chan *net.ProtoMsg, kcpEventInput chan *net.KcpEvent, kcpEventOutput chan *net.KcpEvent) (r *RpcManager) {
@@ -223,6 +225,7 @@ func (r *RpcManager) Start() {
 		r.log.Error("open secretKeyBuffer.bin error")
 		return
 	}
+	r.signRsaKey, r.encRsaKey, _ = region.LoadRsaKey(r.log)
 	// region
 	regionCurr, _ := region.InitRegion(r.log, r.conf.Genshin.KcpAddr, r.conf.Genshin.KcpPort)
 	r.regionCurr = regionCurr

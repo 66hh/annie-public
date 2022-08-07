@@ -8,8 +8,8 @@ import (
 )
 
 type ScenePointEntry struct {
-	Name      string     `json:"name"`
-	PointData *PointData `json:"pointData"`
+	Name      string
+	PointData *PointData
 }
 
 type ScenePointConfig struct {
@@ -17,22 +17,23 @@ type ScenePointConfig struct {
 }
 
 type PointData struct {
-	Id                int32
+	Id                int32     `json:"-"`
 	DollarType        string    `json:"$type"`
 	TranPos           *Position `json:"tranPos"`
 	DungeonIds        []int32   `json:"dungeonIds"`
 	DungeonRandomList []int32   `json:"dungeonRandomList"`
+	TranSceneId       int32     `json:"tranSceneId"`
 }
 
 type Position struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-	Z float64 `json:"z"`
+	X float64 `json:"_x"`
+	Y float64 `json:"_y"`
+	Z float64 `json:"_z"`
 }
 
 func (g *GameDataConfig) loadScenePoints() {
 	g.ScenePointEntries = make(map[string]*ScenePointEntry)
-	g.ScenePointIdList = make([]uint32, 0)
+	g.ScenePointIdList = make([]int32, 0)
 	dirPath := g.binPrefix + "Scene/Point"
 	fileList, err := ioutil.ReadDir(dirPath)
 	if err != nil {
@@ -75,7 +76,7 @@ func (g *GameDataConfig) loadScenePoints() {
 			scenePointEntry := new(ScenePointEntry)
 			scenePointEntry.Name = sceneId + "_" + k
 			scenePointEntry.PointData = v
-			g.ScenePointIdList = append(g.ScenePointIdList, uint32(sceneIdInt32))
+			g.ScenePointIdList = append(g.ScenePointIdList, int32(sceneIdInt32))
 			g.ScenePointEntries[scenePointEntry.Name] = scenePointEntry
 		}
 	}

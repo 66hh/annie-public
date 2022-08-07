@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+message WidgetCoolDownData {
+  uint32 id = 2;
+  uint64 cool_down_time = 9;
+  bool is_success = 10;
+}

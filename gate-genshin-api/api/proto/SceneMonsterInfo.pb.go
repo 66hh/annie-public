@@ -178,7 +178,7 @@ func (x *SceneMonsterInfo) GetBornType() MonsterBornType {
 	if x != nil {
 		return x.BornType
 	}
-	return MonsterBornType_MONSTER_BORN_NONE
+	return MonsterBornType_MONSTER_BORN_TYPE_NONE
 }
 
 func (x *SceneMonsterInfo) GetBlockId() uint32 {

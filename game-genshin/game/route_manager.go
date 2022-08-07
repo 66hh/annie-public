@@ -51,6 +51,9 @@ func (r *RouteManager) InitRoute() {
 	r.registerRouter(api.ApiSceneTransToPointReq, r.gameManager.SceneTransToPointReq)         // 场景传送点请求
 	r.registerRouter(api.ApiCombatInvocationsNotify, r.gameManager.CombatInvocationsNotify)   // 战斗调用通知
 	r.registerRouter(api.ApiMarkMapReq, r.gameManager.MarkMapReq)                             // 标记地图请求
+	r.registerRouter(api.ApiChangeAvatarReq, r.gameManager.ChangeAvatarReq)                   // 更换角色请求
+	r.registerRouter(api.ApiSetUpAvatarTeamReq, r.gameManager.SetUpAvatarTeamReq)             // 配置队伍请求
+	r.registerRouter(api.ApiChooseCurAvatarTeamReq, r.gameManager.ChooseCurAvatarTeamReq)     // 切换队伍请求
 }
 
 func (r *RouteManager) StartRouteHandle(netMsgInput chan *api.NetMsg) {

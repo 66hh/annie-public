@@ -3,8 +3,8 @@ syntax = "proto3";
 package proto;
 option go_package = "./;proto";
 
-import "AbilityString.proto";
 import "AbilityAttachedModifier.proto";
+import "AbilityString.proto";
 import "ModifierDurability.proto";
 
 message AbilityAppliedModifier {

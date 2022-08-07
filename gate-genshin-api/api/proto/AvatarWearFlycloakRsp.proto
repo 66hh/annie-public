@@ -10,10 +10,10 @@ message AvatarWearFlycloakRsp {
     NONE = 0;
     ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
-    CMD_ID = 1709;
+    CMD_ID = 1770;
   }
 
-  int32 retcode = 1;
-  uint64 avatar_guid = 2;
-  uint32 flycloak_id = 3;
+  int32 retcode = 13;
+  uint64 avatar_guid = 8;
+  uint32 flycloak_id = 2;
 }

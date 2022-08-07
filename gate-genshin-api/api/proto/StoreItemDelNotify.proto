@@ -11,9 +11,9 @@ message StoreItemDelNotify {
     NONE = 0;
     ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
-    CMD_ID = 684;
+    CMD_ID = 637;
   }
 
-  StoreType store_type = 1;
-  repeated uint64 guid_list = 2;
+  StoreType store_type = 14;
+  repeated uint64 guid_list = 10;
 }

@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+// CmdId: 4592
+// EnetChannelId: 0
+// EnetIsReliable: true
+message HomeSceneInitFinishRsp {
+  int32 retcode = 7;
+}

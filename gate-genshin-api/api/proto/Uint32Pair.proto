@@ -3,6 +3,7 @@ syntax = "proto3";
 package proto;
 option go_package = "./;proto";
 
+
 message Uint32Pair {
   uint32 key = 1;
   uint32 value = 2;

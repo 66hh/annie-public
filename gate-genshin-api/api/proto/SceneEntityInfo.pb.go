@@ -119,7 +119,7 @@ func (x *SceneEntityInfo) GetEntityType() ProtEntityType {
 	if x != nil {
 		return x.EntityType
 	}
-	return ProtEntityType_PROT_ENTITY_NONE
+	return ProtEntityType_PROT_ENTITY_TYPE_NONE
 }
 
 func (x *SceneEntityInfo) GetEntityId() uint32 {

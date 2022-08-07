@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+// CmdId: 672
+// EnetChannelId: 0
+// EnetIsReliable: true
+message ForgeStartRsp {
+  int32 retcode = 11;
+}

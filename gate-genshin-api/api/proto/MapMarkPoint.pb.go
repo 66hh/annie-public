@@ -105,7 +105,7 @@ func (x *MapMarkPoint) GetFromType() MapMarkFromType {
 	if x != nil {
 		return x.FromType
 	}
-	return MapMarkFromType_NOE
+	return MapMarkFromType_MAP_MARK_FROM_TYPE_NOE
 }
 
 func (x *MapMarkPoint) GetQuestId() uint32 {

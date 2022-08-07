@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+// CmdId: 5918
+// EnetChannelId: 0
+// EnetIsReliable: true
+message FireWorkRsp {
+  int32 retcode = 10;
+}

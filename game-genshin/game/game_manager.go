@@ -2,6 +2,7 @@ package game
 
 import (
 	"flswld.com/common/config"
+	"flswld.com/common/utils/alg"
 	"flswld.com/gate-genshin-api/api"
 	"flswld.com/logger"
 	gameDataConfig "game-genshin/config"
@@ -15,6 +16,7 @@ type GameManager struct {
 	dao          *dao.Dao
 	netMsgInput  chan *api.NetMsg
 	netMsgOutput chan *api.NetMsg
+	snowflake    *alg.SnowflakeWorker
 	// 配置表
 	gameDataConfig *gameDataConfig.GameDataConfig
 	// 接口路由管理器
@@ -32,10 +34,11 @@ func NewGameManager(log *logger.Logger, conf *config.Config, dao *dao.Dao, netMs
 	r.dao = dao
 	r.netMsgInput = netMsgInput
 	r.netMsgOutput = netMsgOutput
+	r.snowflake = alg.NewSnowflakeWorker(1)
 	r.gameDataConfig = gameDataConfig.NewGameDataConfig(log, conf)
 	r.routeManager = NewRouteManager(log, r)
 	r.userManager = NewUserManager(log, dao)
-	r.worldManager = NewWorldManager()
+	r.worldManager = NewWorldManager(r.snowflake)
 	return r
 }
 

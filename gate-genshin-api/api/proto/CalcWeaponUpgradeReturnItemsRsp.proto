@@ -11,10 +11,10 @@ message CalcWeaponUpgradeReturnItemsRsp {
     NONE = 0;
     ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
-    CMD_ID = 660;
+    CMD_ID = 666;
   }
 
-  int32 retcode = 1;
-  uint64 target_weapon_guid = 2;
+  int32 retcode = 5;
+  uint64 target_weapon_guid = 10;
   repeated ItemParam item_param_list = 3;
 }

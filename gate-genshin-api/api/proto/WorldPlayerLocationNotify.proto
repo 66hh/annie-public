@@ -12,9 +12,9 @@ message WorldPlayerLocationNotify {
     NONE = 0;
     ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
-    CMD_ID = 253;
+    CMD_ID = 283;
   }
 
-  repeated PlayerLocationInfo player_loc_list = 1;
-  repeated PlayerWorldLocationInfo player_world_loc_list = 2;
+  repeated PlayerLocationInfo player_loc_list = 6;
+  repeated PlayerWorldLocationInfo player_world_loc_list = 15;
 }

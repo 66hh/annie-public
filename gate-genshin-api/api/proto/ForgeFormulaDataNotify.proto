@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+// CmdId: 673
+// EnetChannelId: 0
+// EnetIsReliable: true
+message ForgeFormulaDataNotify {
+  uint32 forge_id = 11;
+  bool is_locked = 8;
+}

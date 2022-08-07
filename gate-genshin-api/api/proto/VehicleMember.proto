@@ -3,6 +3,7 @@ syntax = "proto3";
 package proto;
 option go_package = "./;proto";
 
+
 message VehicleMember {
   uint32 uid = 1;
   uint64 avatar_guid = 2;

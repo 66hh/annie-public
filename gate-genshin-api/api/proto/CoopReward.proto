@@ -6,9 +6,9 @@ option go_package = "./;proto";
 
 message CoopReward {
   enum State {
-    UNLOCK = 0;
-    LOCK = 1;
-    TAKEN = 2;
+    STATE_UNLOCK = 0;
+    STATE_LOCK = 1;
+    STATE_TAKEN = 2;
   }
 
   uint32 id = 1;

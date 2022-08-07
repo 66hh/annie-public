@@ -147,7 +147,7 @@ func (x *PlatformInfo) GetMovingPlatformType() MovingPlatformType {
 	if x != nil {
 		return x.MovingPlatformType
 	}
-	return MovingPlatformType_MOVING_PLATFORM_NONE
+	return MovingPlatformType_MOVING_PLATFORM_TYPE_NONE
 }
 
 func (x *PlatformInfo) GetIsActive() bool {

@@ -3,7 +3,7 @@ package game
 import (
 	"flswld.com/logger"
 	"game-genshin/dao"
-	"game-genshin/entity"
+	"game-genshin/model"
 	"sync"
 	"time"
 )
@@ -11,7 +11,7 @@ import (
 type UserManager struct {
 	log           *logger.Logger
 	dao           *dao.Dao
-	playerMap     map[uint32]*entity.Player
+	playerMap     map[uint32]*model.Player
 	playerMapLock sync.RWMutex
 }
 
@@ -19,11 +19,11 @@ func NewUserManager(log *logger.Logger, dao *dao.Dao) (r *UserManager) {
 	r = new(UserManager)
 	r.log = log
 	r.dao = dao
-	r.playerMap = make(map[uint32]*entity.Player)
+	r.playerMap = make(map[uint32]*model.Player)
 	return r
 }
 
-func (u *UserManager) GetTargetUser(userId uint32) *entity.Player {
+func (u *UserManager) GetTargetUser(userId uint32) *model.Player {
 	u.playerMapLock.RLock()
 	player, exist := u.playerMap[userId]
 	u.playerMapLock.RUnlock()
@@ -34,65 +34,65 @@ func (u *UserManager) GetTargetUser(userId uint32) *entity.Player {
 	}
 }
 
-func (u *UserManager) LoadUserFromDb(userId uint32) *entity.Player {
+func (u *UserManager) LoadUserFromDb(userId uint32) *model.Player {
 	player, err := u.dao.QueryPlayerByID(userId)
 	if err != nil {
 		u.log.Error("query player error: %v", err)
 		return nil
 	}
-	player.DbState = entity.DbNormal
+	player.DbState = model.DbNormal
 	u.playerMapLock.Lock()
 	u.playerMap[player.PlayerID] = player
 	u.playerMapLock.Unlock()
 	return player
 }
 
-func (u *UserManager) AddUser(player *entity.Player) {
+func (u *UserManager) AddUser(player *model.Player) {
 	if player == nil {
 		return
 	}
-	u.ChangeUserDbState(player, entity.DbInsert)
+	u.ChangeUserDbState(player, model.DbInsert)
 	u.playerMapLock.Lock()
 	u.playerMap[player.PlayerID] = player
 	u.playerMapLock.Unlock()
 }
 
-func (u *UserManager) DeleteUser(player *entity.Player) {
-	u.ChangeUserDbState(player, entity.DbDelete)
+func (u *UserManager) DeleteUser(player *model.Player) {
+	u.ChangeUserDbState(player, model.DbDelete)
 	u.playerMapLock.Lock()
 	u.playerMap[player.PlayerID] = player
 	u.playerMapLock.Unlock()
 }
 
-func (u *UserManager) UpdateUser(player *entity.Player) {
+func (u *UserManager) UpdateUser(player *model.Player) {
 	if player == nil {
 		return
 	}
-	u.ChangeUserDbState(player, entity.DbUpdate)
+	u.ChangeUserDbState(player, model.DbUpdate)
 	u.playerMapLock.Lock()
 	u.playerMap[player.PlayerID] = player
 	u.playerMapLock.Unlock()
 }
 
-func (u *UserManager) ChangeUserDbState(player *entity.Player, state int) {
+func (u *UserManager) ChangeUserDbState(player *model.Player, state int) {
 	if player == nil {
 		return
 	}
 	switch player.DbState {
-	case entity.DbInsert:
-		if state == entity.DbDelete {
-			player.DbState = entity.DbDelete
+	case model.DbInsert:
+		if state == model.DbDelete {
+			player.DbState = model.DbDelete
 		}
-	case entity.DbDelete:
-	case entity.DbUpdate:
-		if state == entity.DbDelete {
-			player.DbState = entity.DbDelete
+	case model.DbDelete:
+	case model.DbUpdate:
+		if state == model.DbDelete {
+			player.DbState = model.DbDelete
 		}
-	case entity.DbNormal:
-		if state == entity.DbDelete {
-			player.DbState = entity.DbDelete
-		} else if state == entity.DbUpdate {
-			player.DbState = entity.DbUpdate
+	case model.DbNormal:
+		if state == model.DbDelete {
+			player.DbState = model.DbDelete
+		} else if state == model.DbUpdate {
+			player.DbState = model.DbUpdate
 		}
 	}
 }
@@ -102,28 +102,28 @@ func (u *UserManager) StartAutoSaveUser() {
 		var ticker *time.Ticker = nil
 		for {
 			u.log.Info("auto save user start")
-			playerMapTemp := make(map[uint32]*entity.Player)
+			playerMapTemp := make(map[uint32]*model.Player)
 			u.playerMapLock.RLock()
 			for k, v := range u.playerMap {
 				playerMapTemp[k] = v
 			}
 			u.playerMapLock.RUnlock()
 			u.log.Info("copy user map finish")
-			insertList := make([]*entity.Player, 0)
+			insertList := make([]*model.Player, 0)
 			deleteList := make([]uint32, 0)
-			updateList := make([]*entity.Player, 0)
+			updateList := make([]*model.Player, 0)
 			for k, v := range playerMapTemp {
 				switch v.DbState {
-				case entity.DbInsert:
+				case model.DbInsert:
 					insertList = append(insertList, v)
-					playerMapTemp[k].DbState = entity.DbNormal
-				case entity.DbDelete:
+					playerMapTemp[k].DbState = model.DbNormal
+				case model.DbDelete:
 					deleteList = append(deleteList, v.PlayerID)
 					delete(playerMapTemp, k)
-				case entity.DbUpdate:
+				case model.DbUpdate:
 					updateList = append(updateList, v)
-					playerMapTemp[k].DbState = entity.DbNormal
-				case entity.DbNormal:
+					playerMapTemp[k].DbState = model.DbNormal
+				case model.DbNormal:
 					continue
 				}
 			}
@@ -145,7 +145,7 @@ func (u *UserManager) StartAutoSaveUser() {
 			u.playerMap = playerMapTemp
 			u.playerMapLock.Unlock()
 			u.log.Info("auto save user finish")
-			ticker = time.NewTicker(time.Minute * 10)
+			ticker = time.NewTicker(time.Minute * 1)
 			<-ticker.C
 			ticker.Stop()
 		}

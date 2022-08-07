@@ -10,9 +10,9 @@ message PrivateChatRsp {
     NONE = 0;
     ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
-    CMD_ID = 4968;
+    CMD_ID = 4981;
   }
 
-  int32 retcode = 1;
-  uint32 chat_forbidden_endtime = 2;
+  int32 retcode = 2;
+  uint32 chat_forbidden_endtime = 10;
 }

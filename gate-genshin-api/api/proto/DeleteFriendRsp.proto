@@ -10,9 +10,9 @@ message DeleteFriendRsp {
     NONE = 0;
     ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
-    CMD_ID = 4026;
+    CMD_ID = 4027;
   }
 
-  int32 retcode = 1;
-  uint32 target_uid = 2;
+  int32 retcode = 4;
+  uint32 target_uid = 8;
 }

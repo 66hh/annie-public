@@ -11,9 +11,9 @@ message GetShopRsp {
     NONE = 0;
     ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
-    CMD_ID = 718;
+    CMD_ID = 731;
   }
 
-  int32 retcode = 1;
-  Shop shop = 2;
+  int32 retcode = 11;
+  Shop shop = 14;
 }

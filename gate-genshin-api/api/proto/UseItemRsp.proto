@@ -10,12 +10,12 @@ message UseItemRsp {
     NONE = 0;
     ENET_CHANNEL_ID = 0;
     ENET_IS_RELIABLE = 1;
-    CMD_ID = 661;
+    CMD_ID = 649;
   }
 
-  int32 retcode = 1;
-  uint64 guid = 2;
-  uint32 item_id = 3;
-  uint64 target_guid = 4;
-  uint32 option_idx = 5;
+  int32 retcode = 15;
+  uint64 guid = 8;
+  uint32 item_id = 11;
+  uint64 target_guid = 12;
+  uint32 option_idx = 13;
 }

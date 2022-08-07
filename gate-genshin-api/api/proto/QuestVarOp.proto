@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "./;proto";
+
+
+message QuestVarOp {
+  uint32 index = 1;
+  int32 value = 2;
+  bool is_add = 3;
+}
