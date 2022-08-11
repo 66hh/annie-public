@@ -8,15 +8,13 @@ import (
 type HandlerFunc func(userId uint32, headMsg *api.PacketHead, payloadMsg any)
 
 type RouteManager struct {
-	log         *logger.Logger
 	gameManager *GameManager
 	// k:apiId v:HandlerFunc
 	handlerFuncRouteMap map[uint16]HandlerFunc
 }
 
-func NewRouteManager(log *logger.Logger, gameManager *GameManager) (r *RouteManager) {
+func NewRouteManager(gameManager *GameManager) (r *RouteManager) {
 	r = new(RouteManager)
-	r.log = log
 	r.gameManager = gameManager
 	r.handlerFuncRouteMap = make(map[uint16]HandlerFunc)
 	return r
@@ -29,7 +27,7 @@ func (r *RouteManager) registerRouter(apiId uint16, handlerFunc HandlerFunc) {
 func (r *RouteManager) doRoute(apiId uint16, userId uint32, headMsg *api.PacketHead, payloadMsg any) {
 	handlerFunc, ok := r.handlerFuncRouteMap[apiId]
 	if !ok {
-		r.log.Error("no route for msg, apiId: %v", apiId)
+		logger.LOG.Error("no route for msg, apiId: %v", apiId)
 		return
 	}
 	handlerFunc(userId, headMsg, payloadMsg)
@@ -54,6 +52,8 @@ func (r *RouteManager) InitRoute() {
 	r.registerRouter(api.ApiChangeAvatarReq, r.gameManager.ChangeAvatarReq)                   // 更换角色请求
 	r.registerRouter(api.ApiSetUpAvatarTeamReq, r.gameManager.SetUpAvatarTeamReq)             // 配置队伍请求
 	r.registerRouter(api.ApiChooseCurAvatarTeamReq, r.gameManager.ChooseCurAvatarTeamReq)     // 切换队伍请求
+	r.registerRouter(api.ApiGetGachaInfoReq, r.gameManager.GetGachaInfoReq)                   // 卡池获取请求
+	r.registerRouter(api.ApiDoGachaReq, r.gameManager.DoGachaReq)                             // 抽卡请求
 }
 
 func (r *RouteManager) StartRouteHandle(netMsgInput chan *api.NetMsg) {

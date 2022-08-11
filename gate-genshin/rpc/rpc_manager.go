@@ -21,8 +21,6 @@ const (
 )
 
 type RpcManager struct {
-	conf                *config.Config
-	log                 *logger.Logger
 	dao                 *dao.Dao
 	gameServiceConsumer *light.Consumer
 	protoMsgInput       chan *net.ProtoMsg
@@ -47,10 +45,8 @@ type RpcManager struct {
 	encRsaKey       []byte
 }
 
-func NewRpcManager(conf *config.Config, log *logger.Logger, dao *dao.Dao, gameServiceConsumer *light.Consumer, protoMsgInput chan *net.ProtoMsg, protoMsgOutput chan *net.ProtoMsg, kcpEventInput chan *net.KcpEvent, kcpEventOutput chan *net.KcpEvent) (r *RpcManager) {
+func NewRpcManager(dao *dao.Dao, gameServiceConsumer *light.Consumer, protoMsgInput chan *net.ProtoMsg, protoMsgOutput chan *net.ProtoMsg, kcpEventInput chan *net.KcpEvent, kcpEventOutput chan *net.KcpEvent) (r *RpcManager) {
 	r = new(RpcManager)
-	r.conf = conf
-	r.log = log
 	r.dao = dao
 	r.gameServiceConsumer = gameServiceConsumer
 	r.protoMsgInput = protoMsgInput
@@ -74,7 +70,7 @@ func (r *RpcManager) getHeadMsg(seq uint32) (headMsg *api.PacketHead) {
 func (r *RpcManager) kcpEventHandle() {
 	for {
 		event := <-r.kcpEventOutput
-		r.log.Info("rpc manager recv event, ConvId: %v, EventId: %v", event.ConvId, event.EventId)
+		logger.LOG.Info("rpc manager recv event, ConvId: %v, EventId: %v", event.ConvId, event.EventId)
 		switch event.EventId {
 		case net.KcpPacketSendNotify:
 			// 关闭发包监听
@@ -86,7 +82,7 @@ func (r *RpcManager) kcpEventHandle() {
 			// 登录成功 通知GS初始化相关数据
 			userId, exist := r.getUserIdByConvId(event.ConvId)
 			if !exist {
-				r.log.Error("can not find userId by convId")
+				logger.LOG.Error("can not find userId by convId")
 				continue
 			}
 			netMsg := new(api.NetMsg)
@@ -96,12 +92,12 @@ func (r *RpcManager) kcpEventHandle() {
 			netMsg.HeadMessage = nil
 			netMsg.PayloadMessage = nil
 			r.sendNetMsgToGameServer(netMsg)
-			r.log.Info("send to gs user login ok, ConvId: %v, UserId: %v", event.ConvId, netMsg.UserId)
+			logger.LOG.Info("send to gs user login ok, ConvId: %v, UserId: %v", event.ConvId, netMsg.UserId)
 		case net.KcpConnCloseNotify:
 			// 连接断开
 			userId, exist := r.getUserIdByConvId(event.ConvId)
 			if !exist {
-				r.log.Error("can not find userId by convId")
+				logger.LOG.Error("can not find userId by convId")
 				continue
 			}
 			if r.getConnState(event.ConvId) == ConnAlive {
@@ -113,7 +109,7 @@ func (r *RpcManager) kcpEventHandle() {
 				netMsg.HeadMessage = nil
 				netMsg.PayloadMessage = nil
 				r.sendNetMsgToGameServer(netMsg)
-				r.log.Info("send to gs user offline, ConvId: %v, UserId: %v", event.ConvId, netMsg.UserId)
+				logger.LOG.Info("send to gs user offline, ConvId: %v, UserId: %v", event.ConvId, netMsg.UserId)
 			}
 			// 删除各种map数据
 			r.deleteConnState(event.ConvId)
@@ -127,7 +123,7 @@ func (r *RpcManager) kcpEventHandle() {
 		case net.KcpConnEstNotify:
 			addr, ok := event.EventMessage.(string)
 			if !ok {
-				r.log.Error("event KcpConnEstNotify msg type error")
+				logger.LOG.Error("event KcpConnEstNotify msg type error")
 				continue
 			}
 			r.setAddrByConvId(event.ConvId, addr)
@@ -222,12 +218,12 @@ func (r *RpcManager) Start() {
 	var err error = nil
 	r.secretKeyBuffer, err = ioutil.ReadFile("static/secretKeyBuffer.bin")
 	if err != nil {
-		r.log.Error("open secretKeyBuffer.bin error")
+		logger.LOG.Error("open secretKeyBuffer.bin error")
 		return
 	}
-	r.signRsaKey, r.encRsaKey, _ = region.LoadRsaKey(r.log)
+	r.signRsaKey, r.encRsaKey, _ = region.LoadRsaKey()
 	// region
-	regionCurr, _ := region.InitRegion(r.log, r.conf.Genshin.KcpAddr, r.conf.Genshin.KcpPort)
+	regionCurr, _ := region.InitRegion(config.CONF.Genshin.KcpAddr, config.CONF.Genshin.KcpPort)
 	r.regionCurr = regionCurr
 	// kcp事件监听
 	go r.kcpEventHandle()
@@ -322,7 +318,7 @@ func (r *RpcManager) Start() {
 					if exist {
 						netMsg.UserId = userId
 					} else {
-						r.log.Error("can not find userId by convId")
+						logger.LOG.Error("can not find userId by convId")
 						continue
 					}
 					netMsg.EventId = api.NormalMsg

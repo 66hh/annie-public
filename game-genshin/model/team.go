@@ -1,8 +1,8 @@
 package model
 
 import (
-	"game-genshin/config"
-	"game-genshin/game/constant"
+	gdc "game-genshin/config"
+	"game-genshin/constant"
 )
 
 type Team struct {
@@ -41,7 +41,7 @@ func NewTeamInfo() (r *TeamInfo) {
 	return r
 }
 
-func (t *TeamInfo) UpdateTeam(funcGetNextWorldEntityId func(uint16) uint32, avatarSkillDepotDataMapConfig map[int32]*config.AvatarSkillDepotData) {
+func (t *TeamInfo) UpdateTeam(funcGetNextWorldEntityId func(uint16) uint32) {
 	activeTeam := t.GetActiveTeam()
 	// AvatarEntity
 	entityIdTypeConst := constant.GetEntityIdTypeConst()
@@ -61,6 +61,7 @@ func (t *TeamInfo) UpdateTeam(funcGetNextWorldEntityId func(uint16) uint32, avat
 	t.TeamResonances = make(map[uint16]bool)
 	t.TeamResonancesConfig = make(map[int32]bool)
 	teamElementTypeCountMap := make(map[uint16]uint8)
+	avatarSkillDepotDataMapConfig := gdc.CONF.AvatarSkillDepotDataMap
 	for _, avatarId := range activeTeam.AvatarIdList {
 		skillData := avatarSkillDepotDataMapConfig[int32(avatarId)]
 		if skillData != nil {

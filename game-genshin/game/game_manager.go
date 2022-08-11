@@ -1,52 +1,45 @@
 package game
 
 import (
-	"flswld.com/common/config"
 	"flswld.com/common/utils/alg"
 	"flswld.com/gate-genshin-api/api"
-	"flswld.com/logger"
-	gameDataConfig "game-genshin/config"
 	"game-genshin/dao"
 	"time"
 )
 
 type GameManager struct {
-	log          *logger.Logger
-	conf         *config.Config
 	dao          *dao.Dao
 	netMsgInput  chan *api.NetMsg
 	netMsgOutput chan *api.NetMsg
 	snowflake    *alg.SnowflakeWorker
-	// 配置表
-	gameDataConfig *gameDataConfig.GameDataConfig
 	// 接口路由管理器
 	routeManager *RouteManager
 	// 用户管理器
 	userManager *UserManager
 	// 世界管理器
 	worldManager *WorldManager
+	// 游戏服务器tick
+	tickManager *TickManager
 }
 
-func NewGameManager(log *logger.Logger, conf *config.Config, dao *dao.Dao, netMsgInput chan *api.NetMsg, netMsgOutput chan *api.NetMsg) (r *GameManager) {
+func NewGameManager(dao *dao.Dao, netMsgInput chan *api.NetMsg, netMsgOutput chan *api.NetMsg) (r *GameManager) {
 	r = new(GameManager)
-	r.log = log
-	r.conf = conf
 	r.dao = dao
 	r.netMsgInput = netMsgInput
 	r.netMsgOutput = netMsgOutput
 	r.snowflake = alg.NewSnowflakeWorker(1)
-	r.gameDataConfig = gameDataConfig.NewGameDataConfig(log, conf)
-	r.routeManager = NewRouteManager(log, r)
-	r.userManager = NewUserManager(log, dao)
+	r.routeManager = NewRouteManager(r)
+	r.userManager = NewUserManager(dao)
 	r.worldManager = NewWorldManager(r.snowflake)
+	r.tickManager = NewTickManager(r)
 	return r
 }
 
 func (g *GameManager) Start() {
-	g.gameDataConfig.LoadAll()
 	g.userManager.StartAutoSaveUser()
 	g.routeManager.InitRoute()
 	g.routeManager.StartRouteHandle(g.netMsgInput)
+	g.tickManager.Start()
 }
 
 // 发送消息给客户端

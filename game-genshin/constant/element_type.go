@@ -4,7 +4,8 @@ import "flswld.com/common/utils/endec"
 
 type ElementTypeValue struct {
 	Value           uint16
-	EnergyProperty  uint16
+	CurrEnergyProp  uint16
+	MaxEnergyProp   uint16
 	TeamResonanceId uint16
 	ConfigName      string
 	ConfigHash      int32
@@ -32,6 +33,7 @@ func GetElementTypeConst() (r *ElementType) {
 
 	r.None = &ElementTypeValue{
 		0,
+		fightProperty.FIGHT_PROP_CUR_FIRE_ENERGY,
 		fightProperty.FIGHT_PROP_MAX_FIRE_ENERGY,
 		0,
 		"",
@@ -39,6 +41,7 @@ func GetElementTypeConst() (r *ElementType) {
 	}
 	r.Fire = &ElementTypeValue{
 		1,
+		fightProperty.FIGHT_PROP_CUR_FIRE_ENERGY,
 		fightProperty.FIGHT_PROP_MAX_FIRE_ENERGY,
 		10101,
 		"TeamResonance_Fire_Lv2",
@@ -46,6 +49,7 @@ func GetElementTypeConst() (r *ElementType) {
 	}
 	r.Water = &ElementTypeValue{
 		2,
+		fightProperty.FIGHT_PROP_CUR_WATER_ENERGY,
 		fightProperty.FIGHT_PROP_MAX_WATER_ENERGY,
 		10201,
 		"TeamResonance_Water_Lv2",
@@ -53,6 +57,7 @@ func GetElementTypeConst() (r *ElementType) {
 	}
 	r.Grass = &ElementTypeValue{
 		3,
+		fightProperty.FIGHT_PROP_CUR_GRASS_ENERGY,
 		fightProperty.FIGHT_PROP_MAX_GRASS_ENERGY,
 		0,
 		"",
@@ -60,6 +65,7 @@ func GetElementTypeConst() (r *ElementType) {
 	}
 	r.Electric = &ElementTypeValue{
 		4,
+		fightProperty.FIGHT_PROP_CUR_ELEC_ENERGY,
 		fightProperty.FIGHT_PROP_MAX_ELEC_ENERGY,
 		10401,
 		"TeamResonance_Electric_Lv2",
@@ -67,6 +73,7 @@ func GetElementTypeConst() (r *ElementType) {
 	}
 	r.Ice = &ElementTypeValue{
 		5,
+		fightProperty.FIGHT_PROP_CUR_ICE_ENERGY,
 		fightProperty.FIGHT_PROP_MAX_ICE_ENERGY,
 		10601,
 		"TeamResonance_Ice_Lv2",
@@ -74,6 +81,7 @@ func GetElementTypeConst() (r *ElementType) {
 	}
 	r.Frozen = &ElementTypeValue{
 		6,
+		fightProperty.FIGHT_PROP_CUR_ICE_ENERGY,
 		fightProperty.FIGHT_PROP_MAX_ICE_ENERGY,
 		0,
 		"",
@@ -81,6 +89,7 @@ func GetElementTypeConst() (r *ElementType) {
 	}
 	r.Wind = &ElementTypeValue{
 		7,
+		fightProperty.FIGHT_PROP_CUR_WIND_ENERGY,
 		fightProperty.FIGHT_PROP_MAX_WIND_ENERGY,
 		10301,
 		"TeamResonance_Wind_Lv2",
@@ -88,6 +97,7 @@ func GetElementTypeConst() (r *ElementType) {
 	}
 	r.Rock = &ElementTypeValue{
 		8,
+		fightProperty.FIGHT_PROP_CUR_ROCK_ENERGY,
 		fightProperty.FIGHT_PROP_MAX_ROCK_ENERGY,
 		10701,
 		"TeamResonance_Rock_Lv2",
@@ -95,6 +105,7 @@ func GetElementTypeConst() (r *ElementType) {
 	}
 	r.AntiFire = &ElementTypeValue{
 		9,
+		fightProperty.FIGHT_PROP_CUR_FIRE_ENERGY,
 		fightProperty.FIGHT_PROP_MAX_FIRE_ENERGY,
 		0,
 		"",
@@ -102,6 +113,7 @@ func GetElementTypeConst() (r *ElementType) {
 	}
 	r.Default = &ElementTypeValue{
 		255,
+		fightProperty.FIGHT_PROP_CUR_FIRE_ENERGY,
 		fightProperty.FIGHT_PROP_MAX_FIRE_ENERGY,
 		10801,
 		"TeamResonance_AllDifferent",

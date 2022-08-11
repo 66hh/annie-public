@@ -2,7 +2,8 @@ package config
 
 import (
 	"encoding/json"
-	"game-genshin/game/constant"
+	"flswld.com/logger"
+	"game-genshin/constant"
 	"io/ioutil"
 )
 
@@ -33,31 +34,31 @@ func (g *GameDataConfig) loadAvatarSkillData() {
 	for _, fileName := range fileNameList {
 		fileData, err := ioutil.ReadFile(g.excelBinPrefix + fileName)
 		if err != nil {
-			g.log.Error("open file error: %v", err)
+			logger.LOG.Error("open file error: %v", err)
 			continue
 		}
 		list := make([]map[string]any, 0)
 		err = json.Unmarshal(fileData, &list)
 		if err != nil {
-			g.log.Error("parse file error: %v", err)
+			logger.LOG.Error("parse file error: %v", err)
 			continue
 		}
 		for _, v := range list {
 			i, err := json.Marshal(v)
 			if err != nil {
-				g.log.Error("parse file error: %v", err)
+				logger.LOG.Error("parse file error: %v", err)
 				continue
 			}
 			avatarSkillData := new(AvatarSkillData)
 			err = json.Unmarshal(i, avatarSkillData)
 			if err != nil {
-				g.log.Error("parse file error: %v", err)
+				logger.LOG.Error("parse file error: %v", err)
 				continue
 			}
 			g.AvatarSkillDataMap[avatarSkillData.Id] = avatarSkillData
 		}
 	}
-	g.log.Info("load %v AvatarSkillData", len(g.AvatarSkillDataMap))
+	logger.LOG.Info("load %v AvatarSkillData", len(g.AvatarSkillDataMap))
 	elementTypeConst := constant.GetElementTypeConst()
 	for _, v := range g.AvatarSkillDataMap {
 		v.CostElemTypeX = elementTypeConst.STRING_MAP[v.CostElemType]

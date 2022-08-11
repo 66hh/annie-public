@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"flswld.com/common/utils/endec"
 	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/logger"
 	"gate-genshin/kcp"
 	"gate-genshin/net"
 	"strconv"
@@ -17,20 +18,20 @@ func (r *RpcManager) getPlayerToken(convId uint64, req *proto.GetPlayerTokenReq)
 	uidStr := req.AccountUid
 	uid, err := strconv.ParseInt(uidStr, 10, 64)
 	if err != nil {
-		r.log.Error("parse uid error: %v", err)
+		logger.LOG.Error("parse uid error: %v", err)
 		return nil
 	}
 	account, err := r.dao.QueryAccountByField("uid", uid)
 	if err != nil {
-		r.log.Error("query account error: %v", err)
+		logger.LOG.Error("query account error: %v", err)
 		return nil
 	}
 	if account == nil {
-		r.log.Error("account is nil")
+		logger.LOG.Error("account is nil")
 		return nil
 	}
 	if account.ComboToken != req.AccountToken {
-		r.log.Error("token error")
+		logger.LOG.Error("token error")
 		return nil
 	}
 	// comboToken验证成功
@@ -48,7 +49,7 @@ func (r *RpcManager) getPlayerToken(convId uint64, req *proto.GetPlayerTokenReq)
 			rsp.CountryCode = "US"
 			addr, exist := r.getAddrByConvId(convId)
 			if !exist {
-				r.log.Error("can not find addr by convId")
+				logger.LOG.Error("can not find addr by convId")
 				return nil
 			}
 			split := strings.Split(addr, ":")
@@ -58,7 +59,7 @@ func (r *RpcManager) getPlayerToken(convId uint64, req *proto.GetPlayerTokenReq)
 			account.Forbid = false
 			_, err := r.dao.UpdateAccountFieldByFieldName("uid", account.Uid, "forbid", false)
 			if err != nil {
-				r.log.Error("update db error: %v", err)
+				logger.LOG.Error("update db error: %v", err)
 				return nil
 			}
 		}
@@ -91,37 +92,37 @@ func (r *RpcManager) getPlayerToken(convId uint64, req *proto.GetPlayerTokenReq)
 	rsp.RegPlatform = 3
 	addr, exist := r.getAddrByConvId(convId)
 	if !exist {
-		r.log.Error("can not find addr by convId")
+		logger.LOG.Error("can not find addr by convId")
 		return nil
 	}
 	split := strings.Split(addr, ":")
 	rsp.ClientIpStr = split[0]
 	if req.GetKeyId() > 0 {
 		// pre check
-		r.log.Debug("do genshin 2.8 rsa logic")
+		logger.LOG.Debug("do genshin 2.8 rsa logic")
 		var encPubPrivKey []byte = nil
 		if req.GetKeyId() == 3 {
 			// 国际服
 			encPubPrivKey = r.encRsaKey
 		} else {
 			// 国服
-			r.log.Error("current region enc key not exist")
+			logger.LOG.Error("current region enc key not exist")
 			return nil
 		}
 		pubKey, err := endec.RsaParsePubKeyByPrivKey(encPubPrivKey)
 		if err != nil {
-			r.log.Error("parse rsa pub key error: %v", err)
+			logger.LOG.Error("parse rsa pub key error: %v", err)
 			return nil
 		}
 		signPrivkey, err := endec.RsaParsePrivKey(r.signRsaKey)
 		if err != nil {
-			r.log.Error("parse rsa priv key error: %v", err)
+			logger.LOG.Error("parse rsa priv key error: %v", err)
 			return nil
 		}
 		clientSeedBase64 := req.GetClientSeed()
 		clientSeedEnc, err := base64.StdEncoding.DecodeString(clientSeedBase64)
 		if err != nil {
-			r.log.Error("parse client seed base64 error: %v", err)
+			logger.LOG.Error("parse client seed base64 error: %v", err)
 			return nil
 		}
 		// create error rsp info
@@ -133,31 +134,31 @@ func (r *RpcManager) getPlayerToken(convId uint64, req *proto.GetPlayerTokenReq)
 		// do
 		clientSeed, err := endec.RsaDecrypt(clientSeedEnc, signPrivkey)
 		if err != nil {
-			r.log.Error("rsa dec error: %v", err)
+			logger.LOG.Error("rsa dec error: %v", err)
 			return rsp
 		}
 		clientSeedUint64 := uint64(0)
 		err = binary.Read(bytes.NewReader(clientSeed), binary.BigEndian, &clientSeedUint64)
 		if err != nil {
-			r.log.Error("parse client seed to uint64 error: %v", err)
+			logger.LOG.Error("parse client seed to uint64 error: %v", err)
 			return rsp
 		}
 		seedUint64 := uint64(11468049314633205968) ^ clientSeedUint64
 		seedBuf := new(bytes.Buffer)
 		err = binary.Write(seedBuf, binary.BigEndian, seedUint64)
 		if err != nil {
-			r.log.Error("conv seed uint64 to bytes error: %v", err)
+			logger.LOG.Error("conv seed uint64 to bytes error: %v", err)
 			return rsp
 		}
 		seed := seedBuf.Bytes()
 		seedEnc, err := endec.RsaEncrypt(seed, pubKey)
 		if err != nil {
-			r.log.Error("rsa enc error: %v", err)
+			logger.LOG.Error("rsa enc error: %v", err)
 			return rsp
 		}
 		seedSign, err := endec.RsaSign(seed, signPrivkey)
 		if err != nil {
-			r.log.Error("rsa sign error: %v", err)
+			logger.LOG.Error("rsa sign error: %v", err)
 			return rsp
 		}
 		rsp.EncryptedSeed = base64.StdEncoding.EncodeToString(seedEnc)
@@ -169,20 +170,20 @@ func (r *RpcManager) getPlayerToken(convId uint64, req *proto.GetPlayerTokenReq)
 func (r *RpcManager) playerLogin(convId uint64, req *proto.PlayerLoginReq) (rsp *proto.PlayerLoginRsp) {
 	userId, exist := r.getUserIdByConvId(convId)
 	if !exist {
-		r.log.Error("can not find userId by convId")
+		logger.LOG.Error("can not find userId by convId")
 		return nil
 	}
 	account, err := r.dao.QueryAccountByField("playerID", userId)
 	if err != nil {
-		r.log.Error("query account error: %v", err)
+		logger.LOG.Error("query account error: %v", err)
 		return nil
 	}
 	if account == nil {
-		r.log.Error("account is nil")
+		logger.LOG.Error("account is nil")
 		return nil
 	}
 	if account.ComboToken != req.Token {
-		r.log.Error("token error")
+		logger.LOG.Error("token error")
 		return nil
 	}
 	// comboToken验证成功

@@ -2,10 +2,7 @@ package model
 
 import (
 	"flswld.com/gate-genshin-api/api/proto"
-	"game-genshin/config"
-	"game-genshin/game/constant"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"time"
 )
 
 const (
@@ -44,123 +41,11 @@ func (p *Player) GetNextGameObjectGuid() uint64 {
 	return uint64(p.PlayerID)<<32 + p.GameObjectGuidCounter
 }
 
-func (p *Player) AddAvatar(avatarId uint32, avatarDataConfig *config.AvatarData, avatarSkillDepotDataConfig *config.AvatarSkillDepotData) {
-	avatar := &Avatar{
-		AvatarId:            avatarId,
-		Level:               1,
-		Exp:                 0,
-		Promote:             0,
-		Satiation:           0,
-		SatiationPenalty:    0,
-		CurrHP:              0,
-		CurrEnergy:          0,
-		FetterList:          nil,
-		SkillLevelMap:       make(map[uint32]uint32),
-		SkillExtraChargeMap: make(map[uint32]uint32),
-		ProudSkillBonusMap:  nil,
-		SkillDepotId:        uint32(avatarSkillDepotDataConfig.Id),
-		CoreProudSkillLevel: 0,
-		TalentIdList:        make([]uint32, 0),
-		ProudSkillList:      make([]uint32, 0),
-		FlyCloak:            140001,
-		Costume:             0,
-		BornTime:            time.Now().Unix(),
-		FetterLevel:         1,
-		FetterExp:           0,
-		NameCardRewardId:    0,
-		NameCardId:          0,
-		Guid:                0,
-		EquipGuidList:       nil,
-		EquipWeapon:         nil,
-		EquipReliquaryList:  nil,
-		FightPropMap:        nil,
-	}
-
-	if avatarSkillDepotDataConfig.EnergySkill > 0 {
-		avatar.SkillLevelMap[uint32(avatarSkillDepotDataConfig.EnergySkill)] = 1
-	}
-	for _, skillId := range avatarSkillDepotDataConfig.Skills {
-		if skillId > 0 {
-			avatar.SkillLevelMap[uint32(skillId)] = 1
-		}
-	}
-	for _, openData := range avatarSkillDepotDataConfig.InherentProudSkillOpens {
-		if openData.ProudSkillGroupId == 0 {
-			continue
-		}
-		if openData.NeedAvatarPromoteLevel <= int32(avatar.Promote) {
-			proudSkillId := (openData.ProudSkillGroupId * 100) + 1
-			// TODO if GameData.getProudSkillDataMap().containsKey(proudSkillId) java
-			avatar.ProudSkillList = append(avatar.ProudSkillList, uint32(proudSkillId))
-		}
-	}
-
-	p.InitAvatar(avatar, avatarDataConfig)
-
-	fightPropertyConst := constant.GetFightPropertyConst()
-	avatar.CurrHP = float64(avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_MAX_HP)])
-
-	p.AvatarMap[avatarId] = avatar
-}
-
-func (p *Player) InitAvatar(avatar *Avatar, avatarDataConfig *config.AvatarData) *Avatar {
-	// 战斗属性
-	fightPropertyConst := constant.GetFightPropertyConst()
-	avatar.FightPropMap = make(map[uint32]float32)
-	avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_NONE)] = 0.0
-	// 白字
-	avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_BASE_HP)] = float32(avatarDataConfig.GetBaseHpByLevel(avatar.Level))
-	avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_BASE_ATTACK)] = float32(avatarDataConfig.GetBaseAttackByLevel(avatar.Level))
-	avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_BASE_DEFENSE)] = float32(avatarDataConfig.GetBaseDefenseByLevel(avatar.Level))
-	avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CRITICAL)] = float32(avatarDataConfig.Critical)
-	avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CRITICAL_HURT)] = float32(avatarDataConfig.CriticalHurt)
-	avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CHARGE_EFFICIENCY)] = 1.0
-	// 绿字
-	avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CUR_HP)] = float32(avatarDataConfig.GetBaseHpByLevel(avatar.Level))
-	avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_MAX_HP)] = float32(avatarDataConfig.GetBaseHpByLevel(avatar.Level))
-	avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CUR_ATTACK)] = float32(avatarDataConfig.GetBaseAttackByLevel(avatar.Level))
-	avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CUR_DEFENSE)] = float32(avatarDataConfig.GetBaseDefenseByLevel(avatar.Level))
-	// guid
-	avatar.Guid = p.GetNextGameObjectGuid()
-	return avatar
-}
-
-func (p *Player) InitAllAvatar(avatarDataMapConfig map[int32]*config.AvatarData) {
-	for avatarId, avatar := range p.AvatarMap {
-		p.AvatarMap[avatarId] = p.InitAvatar(avatar, avatarDataMapConfig[int32(avatarId)])
-	}
-}
-
-func (p *Player) AddWeapon(itemId uint32, weaponId uint64) {
-	p.WeaponMap[weaponId] = &Weapon{
-		WeaponId:   weaponId,
-		ItemId:     itemId,
-		Level:      1,
-		Exp:        0,
-		TotalExp:   0,
-		Promote:    0,
-		Lock:       false,
-		Refinement: 0,
-		MainPropId: 0,
-	}
-}
-
-func (p *Player) InitAllWeapon() {
-	for weaponId, weapon := range p.WeaponMap {
-		weapon.Guid = p.GetNextGameObjectGuid()
-		p.WeaponMap[weaponId] = weapon
-		if weapon.AvatarId != 0 {
-			p.AvatarMap[weapon.AvatarId].EquipGuidList = append(p.AvatarMap[weapon.AvatarId].EquipGuidList, weapon.Guid)
-			p.AvatarMap[weapon.AvatarId].EquipWeapon = weapon
-		}
-	}
-}
-
-func (p *Player) InitAllItem() {
-	for itemId, item := range p.ItemMap {
-		item.Guid = p.GetNextGameObjectGuid()
-		p.ItemMap[itemId] = item
-	}
+func (p *Player) InitAll() {
+	p.InitAllAvatar()
+	p.InitAllWeapon()
+	p.InitAllItem()
+	p.InitAllReliquary()
 }
 
 func (p *Player) InitAllReliquary() {
@@ -172,18 +57,4 @@ func (p *Player) InitAllReliquary() {
 			p.AvatarMap[reliquary.AvatarId].EquipReliquaryList = append(p.AvatarMap[reliquary.AvatarId].EquipReliquaryList, reliquary)
 		}
 	}
-}
-
-func (p *Player) InitAll(gameDataConfig *config.GameDataConfig) {
-	p.InitAllAvatar(gameDataConfig.AvatarDataMap)
-	p.InitAllWeapon()
-	p.InitAllItem()
-	p.InitAllReliquary()
-}
-
-func (p *Player) AvatarEquipWeapon(avatarId uint32, weaponId uint64) {
-	avatar := p.AvatarMap[avatarId]
-	weapon := p.WeaponMap[weaponId]
-	avatar.EquipWeapon = weapon
-	weapon.AvatarId = avatarId
 }

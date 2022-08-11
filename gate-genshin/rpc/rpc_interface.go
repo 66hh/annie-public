@@ -3,6 +3,7 @@ package rpc
 import (
 	"flswld.com/gate-genshin-api/api"
 	"flswld.com/gate-genshin-api/gm"
+	"flswld.com/logger"
 	"gate-genshin/kcp"
 	"gate-genshin/net"
 	"github.com/pkg/errors"
@@ -22,7 +23,7 @@ func (r *RpcManager) RecvNetMsgFromGameServer(netMsg *api.NetMsg, res *bool) err
 		if exist {
 			protoMsg.ConvId = convId
 		} else {
-			r.log.Error("can not find convId by userId")
+			logger.LOG.Error("can not find convId by userId")
 			return nil
 		}
 		protoMsg.ApiId = netMsg.ApiId
@@ -31,7 +32,7 @@ func (r *RpcManager) RecvNetMsgFromGameServer(netMsg *api.NetMsg, res *bool) err
 		r.protoMsgInput <- protoMsg
 		return nil
 	} else {
-		r.log.Info("recv event from game server, event id: %v", netMsg.EventId)
+		logger.LOG.Info("recv event from game server, event id: %v", netMsg.EventId)
 		return nil
 	}
 }
@@ -46,7 +47,7 @@ func (r *RpcManager) ChangeGateOpenState(isOpen *bool, res *bool) error {
 		EventId:      net.KcpGateOpenState,
 		EventMessage: *isOpen,
 	}
-	r.log.Info("change gate open state to: %v", *isOpen)
+	logger.LOG.Info("change gate open state to: %v", *isOpen)
 	return nil
 }
 

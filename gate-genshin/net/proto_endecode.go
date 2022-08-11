@@ -10,7 +10,6 @@ import (
 )
 
 type ProtoEnDecode struct {
-	log              *logger.Logger
 	kcpMsgInput      chan *KcpMsg
 	kcpMsgOutput     chan *KcpMsg
 	protoMsgInput    chan *ProtoMsg
@@ -20,9 +19,8 @@ type ProtoEnDecode struct {
 	bypassApiMap     map[uint16]bool
 }
 
-func NewProtoEnDecode(log *logger.Logger, kcpMsgInput chan *KcpMsg, kcpMsgOutput chan *KcpMsg, protoMsgInput chan *ProtoMsg, protoMsgOutput chan *ProtoMsg) (r *ProtoEnDecode) {
+func NewProtoEnDecode(kcpMsgInput chan *KcpMsg, kcpMsgOutput chan *KcpMsg, protoMsgInput chan *ProtoMsg, protoMsgOutput chan *ProtoMsg) (r *ProtoEnDecode) {
 	r = new(ProtoEnDecode)
-	r.log = log
 	r.kcpMsgInput = kcpMsgInput
 	r.kcpMsgOutput = kcpMsgOutput
 	r.protoMsgInput = protoMsgInput
@@ -54,7 +52,7 @@ func (p *ProtoEnDecode) protoDecode() {
 			headMsg := new(api.PacketHead)
 			err := pb.Unmarshal(kcpMsg.HeadData, headMsg)
 			if err != nil {
-				p.log.Error("unmarshal head data err: %v", err)
+				logger.LOG.Error("unmarshal head data err: %v", err)
 				continue
 			}
 			protoMsg.HeadMessage = headMsg
@@ -67,7 +65,7 @@ func (p *ProtoEnDecode) protoDecode() {
 			messageList := make(map[uint16]any)
 			p.protoDecodePayloadCore(kcpMsg.ApiId, kcpMsg.ProtoData, &messageList)
 			if len(messageList) == 0 {
-				p.log.Error("decode proto object is nil")
+				logger.LOG.Error("decode proto object is nil")
 				continue
 			}
 			if kcpMsg.ApiId == api.ApiUnionCmdNotify {
@@ -76,7 +74,7 @@ func (p *ProtoEnDecode) protoDecode() {
 					msg.ConvId = kcpMsg.ConvId
 					msg.ApiId = apiId
 					msg.PayloadMessage = message
-					p.log.Debug("[recv] union proto msg, convId: %v, apiId: %v", msg.ConvId, msg.ApiId)
+					logger.LOG.Debug("[recv] union proto msg, convId: %v, apiId: %v", msg.ConvId, msg.ApiId)
 					//p.log.Debug("[recv] union proto msg, convId: %v, apiId: %v, payloadMsg: %v", msg.ConvId, msg.ApiId, msg.PayloadMessage)
 					if apiId == api.ApiUnionCmdNotify {
 						// 聚合消息自身不再往后发送
@@ -92,7 +90,7 @@ func (p *ProtoEnDecode) protoDecode() {
 		} else {
 			protoMsg.PayloadMessage = nil
 		}
-		p.log.Debug("[recv] proto msg, convId: %v, apiId: %v, headMsg: %v", protoMsg.ConvId, protoMsg.ApiId, protoMsg.HeadMessage)
+		logger.LOG.Debug("[recv] proto msg, convId: %v, apiId: %v, headMsg: %v", protoMsg.ConvId, protoMsg.ApiId, protoMsg.HeadMessage)
 		//p.log.Debug("[recv] proto msg, convId: %v, apiId: %v, headMsg: %v, payloadMsg: %v", protoMsg.ConvId, protoMsg.ApiId, protoMsg.HeadMessage, protoMsg.PayloadMessage)
 		p.protoMsgOutput <- protoMsg
 	}
@@ -101,14 +99,14 @@ func (p *ProtoEnDecode) protoDecode() {
 func (p *ProtoEnDecode) protoDecodePayloadCore(apiId uint16, protoData []byte, messageList *map[uint16]any) {
 	protoObj := p.decodePayloadToProto(apiId, protoData)
 	if protoObj == nil {
-		p.log.Error("decode proto object is nil")
+		logger.LOG.Error("decode proto object is nil")
 		return
 	}
 	if apiId == api.ApiUnionCmdNotify {
 		// 处理聚合消息
 		unionCmdNotify, ok := protoObj.(*proto.UnionCmdNotify)
 		if !ok {
-			p.log.Error("parse union cmd error")
+			logger.LOG.Error("parse union cmd error")
 			return
 		}
 		for _, cmd := range unionCmdNotify.GetCmdList() {
@@ -121,7 +119,7 @@ func (p *ProtoEnDecode) protoDecodePayloadCore(apiId uint16, protoData []byte, m
 func (p *ProtoEnDecode) protoEncode() {
 	for {
 		protoMsg := <-p.protoMsgInput
-		p.log.Debug("[send] proto msg, convId: %v, apiId: %v, headMsg: %v", protoMsg.ConvId, protoMsg.ApiId, protoMsg.HeadMessage)
+		logger.LOG.Debug("[send] proto msg, convId: %v, apiId: %v, headMsg: %v", protoMsg.ConvId, protoMsg.ApiId, protoMsg.HeadMessage)
 		//p.log.Debug("[send] proto msg, convId: %v, apiId: %v, headMsg: %v, payloadMsg: %v", protoMsg.ConvId, protoMsg.ApiId, protoMsg.HeadMessage, protoMsg.PayloadMessage)
 		kcpMsg := new(KcpMsg)
 		kcpMsg.ConvId = protoMsg.ConvId
@@ -130,7 +128,7 @@ func (p *ProtoEnDecode) protoEncode() {
 		if protoMsg.HeadMessage != nil {
 			headData, err := pb.Marshal(protoMsg.HeadMessage)
 			if err != nil {
-				p.log.Error("marshal head data err: %v", err)
+				logger.LOG.Error("marshal head data err: %v", err)
 				continue
 			}
 			kcpMsg.HeadData = headData
@@ -141,11 +139,11 @@ func (p *ProtoEnDecode) protoEncode() {
 		if protoMsg.PayloadMessage != nil {
 			apiId, protoData := p.encodeProtoToPayload(protoMsg.PayloadMessage)
 			if apiId == 0 || protoData == nil {
-				p.log.Error("encode proto data is nil")
+				logger.LOG.Error("encode proto data is nil")
 				continue
 			}
 			if apiId != protoMsg.ApiId {
-				p.log.Error("api id is not match with proto obj")
+				logger.LOG.Error("api id is not match with proto obj")
 				continue
 			}
 			kcpMsg.ProtoData = protoData
@@ -160,12 +158,12 @@ func (p *ProtoEnDecode) protoEncode() {
 func (p *ProtoEnDecode) decodePayloadToProto(apiId uint16, protoData []byte) (protoObj any) {
 	protoObj = p.getProtoObjByApiId(apiId)
 	if protoObj == nil {
-		p.log.Error("get new proto object is nil")
+		logger.LOG.Error("get new proto object is nil")
 		return nil
 	}
 	err := pb.Unmarshal(protoData, protoObj.(pb.Message))
 	if err != nil {
-		p.log.Error("unmarshal proto data err: %v", err)
+		logger.LOG.Error("unmarshal proto data err: %v", err)
 		return nil
 	}
 	return protoObj
@@ -176,7 +174,7 @@ func (p *ProtoEnDecode) encodeProtoToPayload(protoObj any) (apiId uint16, protoD
 	var err error = nil
 	protoData, err = pb.Marshal(protoObj.(pb.Message))
 	if err != nil {
-		p.log.Error("marshal proto object err: %v", err)
+		logger.LOG.Error("marshal proto object err: %v", err)
 		return 0, nil
 	}
 	return apiId, protoData

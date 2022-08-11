@@ -3,7 +3,6 @@ package controller
 import (
 	"flswld.com/common/config"
 	"flswld.com/light"
-	"flswld.com/logger"
 	waterAuth "flswld.com/water-api/auth"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -12,16 +11,12 @@ import (
 )
 
 type Controller struct {
-	conf                      *config.Config
-	log                       *logger.Logger
 	rpcWaterAuthConsumer      *light.Consumer
 	rpcGenshinGatewayConsumer *light.Consumer
 }
 
-func NewController(conf *config.Config, log *logger.Logger, rpcWaterAuthConsumer *light.Consumer, rpcGenshinGatewayConsumer *light.Consumer) (r *Controller) {
+func NewController(rpcWaterAuthConsumer *light.Consumer, rpcGenshinGatewayConsumer *light.Consumer) (r *Controller) {
 	r = new(Controller)
-	r.conf = conf
-	r.log = log
 	r.rpcWaterAuthConsumer = rpcWaterAuthConsumer
 	r.rpcGenshinGatewayConsumer = rpcGenshinGatewayConsumer
 	go r.registerRouter()
@@ -58,7 +53,7 @@ func (c *Controller) authorize() gin.HandlerFunc {
 }
 
 func (c *Controller) registerRouter() {
-	if c.conf.Logger.Level == "DEBUG" {
+	if config.CONF.Logger.Level == "DEBUG" {
 		gin.SetMode(gin.DebugMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
@@ -70,7 +65,7 @@ func (c *Controller) registerRouter() {
 	engine.GET("/gm/gate/online", c.getOnlineUser)
 	engine.POST("/gm/gate/forbid", c.forbidUser)
 	engine.POST("/gm/gate/forbid/cancel", c.unForbidUser)
-	port := strconv.FormatInt(int64(c.conf.HttpPort), 10)
+	port := strconv.FormatInt(int64(config.CONF.HttpPort), 10)
 	portStr := ":" + port
 	_ = engine.Run(portStr)
 }

@@ -3,6 +3,7 @@ package net
 import (
 	"flswld.com/gate-genshin-api/api"
 	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/logger"
 	"reflect"
 )
 
@@ -25,6 +26,7 @@ func (p *ProtoEnDecode) initMsgProtoMap() {
 	p.apiIdProtoObjMap[api.ApiChangeAvatarReq] = reflect.TypeOf(&proto.ChangeAvatarReq{})                   // 更换角色请求
 	p.apiIdProtoObjMap[api.ApiSetUpAvatarTeamReq] = reflect.TypeOf(&proto.SetUpAvatarTeamReq{})             // 配置队伍请求
 	p.apiIdProtoObjMap[api.ApiChooseCurAvatarTeamReq] = reflect.TypeOf(&proto.ChooseCurAvatarTeamReq{})     // 切换队伍请求
+	p.apiIdProtoObjMap[api.ApiDoGachaReq] = reflect.TypeOf(&proto.DoGachaReq{})                             // 抽卡请求
 	// protoObj -> apiId
 	p.protoObjApiIdMap[reflect.TypeOf(&proto.GetPlayerTokenRsp{})] = api.ApiGetPlayerTokenRsp                           // 获取玩家token响应
 	p.protoObjApiIdMap[reflect.TypeOf(&proto.PlayerLoginRsp{})] = api.ApiPlayerLoginRsp                                 // 玩家登录响应
@@ -69,18 +71,25 @@ func (p *ProtoEnDecode) initMsgProtoMap() {
 	p.protoObjApiIdMap[reflect.TypeOf(&proto.SetUpAvatarTeamRsp{})] = api.ApiSetUpAvatarTeamRsp                         // 配置队伍响应
 	p.protoObjApiIdMap[reflect.TypeOf(&proto.AvatarTeamUpdateNotify{})] = api.ApiAvatarTeamUpdateNotify                 // 角色队伍更新通知
 	p.protoObjApiIdMap[reflect.TypeOf(&proto.ChooseCurAvatarTeamRsp{})] = api.ApiChooseCurAvatarTeamRsp                 // 切换队伍响应
+	p.protoObjApiIdMap[reflect.TypeOf(&proto.StoreItemChangeNotify{})] = api.ApiStoreItemChangeNotify                   // 背包道具变动通知
+	p.protoObjApiIdMap[reflect.TypeOf(&proto.ItemAddHintNotify{})] = api.ApiItemAddHintNotify                           // 道具增加提示通知
+	p.protoObjApiIdMap[reflect.TypeOf(&proto.StoreItemDelNotify{})] = api.ApiStoreItemDelNotify                         // 背包道具删除通知
+	p.protoObjApiIdMap[reflect.TypeOf(&proto.PlayerPropNotify{})] = api.ApiPlayerPropNotify                             // 玩家属性通知
+	p.protoObjApiIdMap[reflect.TypeOf(&proto.GetGachaInfoRsp{})] = api.ApiGetGachaInfoRsp                               // 卡池获取响应
+	p.protoObjApiIdMap[reflect.TypeOf(&proto.DoGachaRsp{})] = api.ApiDoGachaRsp                                         // 抽卡响应
 	// bypass 尚未得知协议的客户端上行消息
 	p.bypassApiMap[api.ApiPathfindingEnterSceneReq] = true // 寻路进入场景请求
 	p.bypassApiMap[api.ApiSceneInitFinishReq] = true       // 场景初始化完成请求
 	p.bypassApiMap[api.ApiEnterSceneDoneReq] = true        // 进入场景完成请求
 	p.bypassApiMap[api.ApiPostEnterSceneReq] = true        // 提交进入场景请求
 	p.bypassApiMap[api.ApiTowerAllDataReq] = true          // 深渊数据请求
+	p.bypassApiMap[api.ApiGetGachaInfoReq] = true          // 卡池获取请求
 }
 
 func (p *ProtoEnDecode) getProtoObjByApiId(apiId uint16) (protoObj any) {
 	protoObjTypePointer, ok := p.apiIdProtoObjMap[apiId]
 	if !ok {
-		p.log.Error("unknown api id: %v", apiId)
+		logger.LOG.Error("unknown api id: %v", apiId)
 		protoObj = nil
 		return protoObj
 	}
@@ -93,7 +102,7 @@ func (p *ProtoEnDecode) getApiIdByProtoObj(protoObj any) (apiId uint16) {
 	var ok = false
 	apiId, ok = p.protoObjApiIdMap[reflect.TypeOf(protoObj)]
 	if !ok {
-		p.log.Error("unknown proto object: %v", protoObj)
+		logger.LOG.Error("unknown proto object: %v", protoObj)
 		apiId = 0
 	}
 	return apiId

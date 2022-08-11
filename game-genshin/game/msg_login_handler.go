@@ -5,13 +5,15 @@ import (
 	"flswld.com/common/utils/reflection"
 	"flswld.com/gate-genshin-api/api"
 	"flswld.com/gate-genshin-api/api/proto"
-	"game-genshin/game/constant"
+	"flswld.com/logger"
+	gdc "game-genshin/config"
+	"game-genshin/constant"
 	"strconv"
 	"time"
 )
 
 func (g *GameManager) OnLoginOk(userId uint32) {
-	g.log.Info("user login, user id: %v", userId)
+	logger.LOG.Info("user login, user id: %v", userId)
 	player := g.userManager.GetTargetUser(userId)
 	if player == nil {
 		g.SendMsg(api.ApiDoSetPlayerBornDataNotify, userId, nil, nil)
@@ -24,12 +26,12 @@ func (g *GameManager) OnLoginOk(userId uint32) {
 	player.WorldId = world.id
 	player.PeerId = world.GetNextWorldPeerId()
 	// 初始化
-	player.InitAll(g.gameDataConfig)
+	player.InitAll()
 	playerPropertyConst := constant.GetPlayerPropertyConst()
 	player.Properties[playerPropertyConst.PROP_PLAYER_MP_SETTING_TYPE] = uint32(player.MpSetting.Number())
 	player.Properties[playerPropertyConst.PROP_IS_MP_MODE_AVAILABLE] = 1
 	g.userManager.UpdateUser(player)
-	player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId, g.gameDataConfig.AvatarSkillDepotDataMap)
+	player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId)
 
 	// PacketPlayerDataNotify
 	playerDataNotify := new(proto.PlayerDataNotify)
@@ -62,7 +64,7 @@ func (g *GameManager) OnLoginOk(userId uint32) {
 	playerStoreNotify := new(proto.PlayerStoreNotify)
 	playerStoreNotify.StoreType = proto.StoreType_STORE_TYPE_PACK
 	playerStoreNotify.WeightLimit = 30000
-	itemDataMapConfig := g.gameDataConfig.ItemDataMap
+	itemDataMapConfig := gdc.CONF.ItemDataMap
 	itemTypeConst := constant.GetItemTypeConst()
 	for _, weapon := range player.WeaponMap {
 		pbItem := &proto.Item{
@@ -205,7 +207,7 @@ func (g *GameManager) OnLoginOk(userId uint32) {
 			})
 		}
 		// 解锁全部资料
-		for _, v := range g.gameDataConfig.AvatarFetterDataMap[int32(avatar.AvatarId)] {
+		for _, v := range gdc.CONF.AvatarFetterDataMap[int32(avatar.AvatarId)] {
 			pbAvatar.FetterInfo.FetterList = append(pbAvatar.FetterInfo.FetterList, &proto.FetterData{
 				FetterId:    uint32(v),
 				FetterState: uint32(fetterStateConst.FINISH),
@@ -265,7 +267,7 @@ func (g *GameManager) OnLoginOk(userId uint32) {
 }
 
 func (g *GameManager) OnUserOffline(userId uint32) {
-	g.log.Info("user offline, user id: %v", userId)
+	logger.LOG.Info("user offline, user id: %v", userId)
 	player := g.userManager.GetTargetUser(userId)
 	g.userManager.UpdateUser(player)
 }

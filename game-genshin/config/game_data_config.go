@@ -1,14 +1,14 @@
 package config
 
 import (
-	"flswld.com/common/config"
+	appConfig "flswld.com/common/config"
 	"flswld.com/logger"
 	"os"
 )
 
+var CONF *GameDataConfig = nil
+
 type GameDataConfig struct {
-	log            *logger.Logger
-	conf           *config.Config
 	binPrefix      string
 	excelBinPrefix string
 	GameDepot      *GameDepot
@@ -33,13 +33,11 @@ type GameDataConfig struct {
 	AvatarSkillDepotDataMap map[int32]*AvatarSkillDepotData
 }
 
-func NewGameDataConfig(log *logger.Logger, conf *config.Config) (r *GameDataConfig) {
-	r = new(GameDataConfig)
-	r.log = log
-	r.conf = conf
-	r.binPrefix = ""
-	r.excelBinPrefix = ""
-	return r
+func InitGameDataConfig() {
+	CONF = new(GameDataConfig)
+	CONF.binPrefix = ""
+	CONF.excelBinPrefix = ""
+	CONF.loadAll()
 }
 
 func (g *GameDataConfig) load() {
@@ -60,23 +58,23 @@ func (g *GameDataConfig) load() {
 	g.loadAvatarSkillDepotData()
 }
 
-func (g *GameDataConfig) LoadAll() {
-	resourcePath := g.conf.Genshin.ResourcePath
+func (g *GameDataConfig) loadAll() {
+	resourcePath := appConfig.CONF.Genshin.ResourcePath
 	dirInfo, err := os.Stat(resourcePath)
 	if err != nil || !dirInfo.IsDir() {
-		g.log.Error("open game data config dir error: %v", err)
+		logger.LOG.Error("open game data config dir error: %v", err)
 		return
 	}
 	g.binPrefix = resourcePath + "/BinOutput"
 	g.excelBinPrefix = resourcePath + "/ExcelBinOutput"
 	dirInfo, err = os.Stat(g.binPrefix)
 	if err != nil || !dirInfo.IsDir() {
-		g.log.Error("open game data bin output config dir error: %v", err)
+		logger.LOG.Error("open game data bin output config dir error: %v", err)
 		return
 	}
 	dirInfo, err = os.Stat(g.excelBinPrefix)
 	if err != nil || !dirInfo.IsDir() {
-		g.log.Error("open game data excel bin output config dir error: %v", err)
+		logger.LOG.Error("open game data excel bin output config dir error: %v", err)
 		return
 	}
 	g.binPrefix += "/"

@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"flswld.com/logger"
 	"io/ioutil"
 	"strings"
 )
@@ -55,7 +56,7 @@ func (g *GameDataConfig) loadOpenConfig() {
 		dirPath := g.binPrefix + v
 		fileList, err := ioutil.ReadDir(dirPath)
 		if err != nil {
-			g.log.Error("open dir error: %v", err)
+			logger.LOG.Error("open dir error: %v", err)
 			return
 		}
 		for _, file := range fileList {
@@ -66,12 +67,12 @@ func (g *GameDataConfig) loadOpenConfig() {
 			config := make(map[string][]*OpenConfigData)
 			fileData, err := ioutil.ReadFile(dirPath + "/" + fileName)
 			if err != nil {
-				g.log.Error("open file error: %v", err)
+				logger.LOG.Error("open file error: %v", err)
 				continue
 			}
 			err = json.Unmarshal(fileData, &config)
 			if err != nil {
-				g.log.Error("parse file error: %v", err)
+				logger.LOG.Error("parse file error: %v", err)
 				continue
 			}
 			for kk, vv := range config {
@@ -81,11 +82,11 @@ func (g *GameDataConfig) loadOpenConfig() {
 		}
 	}
 	if len(list) == 0 {
-		g.log.Error("no open config entries load")
+		logger.LOG.Error("no open config entries load")
 	}
 	g.OpenConfigEntries = make(map[string]*OpenConfigEntry)
 	for _, v := range list {
 		g.OpenConfigEntries[v.Name] = v
 	}
-	g.log.Info("load %v OpenConfig", len(g.OpenConfigEntries))
+	logger.LOG.Info("load %v OpenConfig", len(g.OpenConfigEntries))
 }

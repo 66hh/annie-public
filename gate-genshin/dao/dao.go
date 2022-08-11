@@ -9,20 +9,16 @@ import (
 )
 
 type Dao struct {
-	conf   *config.Config
-	log    *logger.Logger
 	client *mongo.Client
 	db     *mongo.Database
 }
 
-func NewDao(conf *config.Config, log *logger.Logger) (r *Dao) {
+func NewDao() (r *Dao) {
 	r = new(Dao)
-	r.conf = conf
-	r.log = log
-	clientOptions := options.Client().ApplyURI(conf.Database.Url)
+	clientOptions := options.Client().ApplyURI(config.CONF.Database.Url)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
-		r.log.Error("mongo connect error: %v", err)
+		logger.LOG.Error("mongo connect error: %v", err)
 		return nil
 	}
 	r.client = client
@@ -33,6 +29,6 @@ func NewDao(conf *config.Config, log *logger.Logger) (r *Dao) {
 func (d *Dao) CloseDao() {
 	err := d.client.Disconnect(context.TODO())
 	if err != nil {
-		d.log.Error("mongo close error: %v", err)
+		logger.LOG.Error("mongo close error: %v", err)
 	}
 }

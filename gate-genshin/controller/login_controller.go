@@ -8,6 +8,7 @@ import (
 	providerApiEntity "flswld.com/annie-user-api/entity"
 	"flswld.com/common/utils/endec"
 	"flswld.com/common/utils/random"
+	"flswld.com/logger"
 	"gate-genshin/entity/api"
 	"gate-genshin/entity/db"
 	"github.com/gin-gonic/gin"
@@ -27,28 +28,28 @@ func (c *Controller) apiLogin(context *gin.Context) {
 	requestData := new(api.LoginAccountRequestJson)
 	err := context.ShouldBindJSON(requestData)
 	if err != nil {
-		c.log.Error("parse LoginAccountRequestJson error: %v", err)
+		logger.LOG.Error("parse LoginAccountRequestJson error: %v", err)
 		return
 	}
 
 	encPwdData, err := base64.StdEncoding.DecodeString(requestData.Password)
 	if err != nil {
-		c.log.Error("decode password enc data error: %v", err)
+		logger.LOG.Error("decode password enc data error: %v", err)
 		return
 	}
 	pwdPrivKey, err := endec.RsaParsePrivKey(c.pwdRsaKey)
 	if err != nil {
-		c.log.Error("parse rsa key error: %v", err)
+		logger.LOG.Error("parse rsa key error: %v", err)
 		return
 	}
 	pwdDecData, err := endec.RsaDecrypt(encPwdData, pwdPrivKey)
 	useAtAtMode := false
 	if err != nil {
-		c.log.Debug("rsa dec error: %v", err)
-		c.log.Debug("password rsa dec fail, fallback to @@ mode")
+		logger.LOG.Debug("rsa dec error: %v", err)
+		logger.LOG.Debug("password rsa dec fail, fallback to @@ mode")
 		useAtAtMode = true
 	} else {
-		c.log.Debug("password dec: %v", string(pwdDecData))
+		logger.LOG.Debug("password dec: %v", string(pwdDecData))
 		useAtAtMode = false
 	}
 
@@ -121,7 +122,7 @@ func (c *Controller) apiLogin(context *gin.Context) {
 	// 登录成功
 	account, err := c.dao.QueryAccountByField("username", username)
 	if err != nil {
-		c.log.Error("query account from db error: %v", err)
+		logger.LOG.Error("query account from db error: %v", err)
 		return
 	}
 	if account == nil {
@@ -173,17 +174,17 @@ func (c *Controller) apiVerify(context *gin.Context) {
 	requestData := new(api.LoginTokenRequest)
 	err := context.ShouldBindJSON(requestData)
 	if err != nil {
-		c.log.Error("parse LoginTokenRequest error: %v", err)
+		logger.LOG.Error("parse LoginTokenRequest error: %v", err)
 		return
 	}
 	uid, err := strconv.ParseInt(requestData.Uid, 10, 64)
 	if err != nil {
-		c.log.Error("parse uid error: %v", err)
+		logger.LOG.Error("parse uid error: %v", err)
 		return
 	}
 	account, err := c.dao.QueryAccountByField("uid", uid)
 	if err != nil {
-		c.log.Error("query account from db error: %v", err)
+		logger.LOG.Error("query account from db error: %v", err)
 		return
 	}
 	responseData := api.NewLoginResult()
@@ -204,23 +205,23 @@ func (c *Controller) v2Login(context *gin.Context) {
 	requestData := new(api.ComboTokenReq)
 	err := context.ShouldBindJSON(requestData)
 	if err != nil {
-		c.log.Error("parse ComboTokenReq error: %v", err)
+		logger.LOG.Error("parse ComboTokenReq error: %v", err)
 		return
 	}
 	data := requestData.Data
 	if len(data) == 0 {
-		c.log.Error("requestData.Data len == 0")
+		logger.LOG.Error("requestData.Data len == 0")
 		return
 	}
 	loginData := new(api.LoginTokenData)
 	err = json.Unmarshal([]byte(data), loginData)
 	if err != nil {
-		c.log.Error("Unmarshal LoginTokenData error: %v", err)
+		logger.LOG.Error("Unmarshal LoginTokenData error: %v", err)
 		return
 	}
 	uid, err := strconv.ParseInt(loginData.Uid, 10, 64)
 	if err != nil {
-		c.log.Error("ParseInt uid error: %v", err)
+		logger.LOG.Error("ParseInt uid error: %v", err)
 		return
 	}
 	responseData := api.NewComboTokenRes()

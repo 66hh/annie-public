@@ -6,6 +6,7 @@ import (
 	_ "flswld.com/gate-genshin-api/api/proto"
 	"flswld.com/light"
 	"flswld.com/logger"
+	gdc "game-genshin/config"
 	"game-genshin/dao"
 	"game-genshin/game"
 	"game-genshin/rpc"
@@ -17,32 +18,34 @@ import (
 
 func main() {
 	filePath := "./application.toml"
-	conf := config.NewConfig(filePath)
+	config.InitConfig(filePath)
 
-	log := logger.NewLogger(conf)
-	log.Info("game-genshin start")
+	logger.InitLogger()
+	logger.LOG.Info("game-genshin start")
 
-	db := dao.NewDao(conf, log)
+	gdc.InitGameDataConfig()
+
+	db := dao.NewDao()
 
 	netMsgInput := make(chan *api.NetMsg, 1000)
 	netMsgOutput := make(chan *api.NetMsg, 1000)
 
-	gameManager := game.NewGameManager(log, conf, db, netMsgInput, netMsgOutput)
+	gameManager := game.NewGameManager(db, netMsgInput, netMsgOutput)
 	gameManager.Start()
 
-	genshinGatewayConsumer := light.NewRpcConsumer(conf, log, "genshin-gateway")
+	genshinGatewayConsumer := light.NewRpcConsumer("genshin-gateway")
 	rpcManager := rpc.NewRpcManager(genshinGatewayConsumer, netMsgInput, netMsgOutput)
-	gameServiceProvider := light.NewRpcProvider(conf, log, rpcManager)
+	gameServiceProvider := light.NewRpcProvider(rpcManager)
 	rpcManager.Start()
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
 	for {
 		s := <-c
-		log.Info("get a signal %s", s.String())
+		logger.LOG.Info("get a signal %s", s.String())
 		switch s {
 		case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT:
-			log.Info("game-genshin exit")
+			logger.LOG.Info("game-genshin exit")
 			db.CloseDao()
 			gameServiceProvider.CloseRpcProvider()
 			genshinGatewayConsumer.CloseRpcConsumer()

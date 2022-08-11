@@ -9,35 +9,35 @@ import (
 	"io/ioutil"
 )
 
-func LoadRsaKey(log *logger.Logger) (signRsaKey []byte, encRsaKey []byte, pwdRsaKey []byte) {
+func LoadRsaKey() (signRsaKey []byte, encRsaKey []byte, pwdRsaKey []byte) {
 	var err error = nil
 	signRsaKey, err = ioutil.ReadFile("static/curr_region_sign_key.pem")
 	if err != nil {
-		log.Error("open curr_region_sign_key.pem error: %v", err)
+		logger.LOG.Error("open curr_region_sign_key.pem error: %v", err)
 		return nil, nil, nil
 	}
 	encRsaKey, err = ioutil.ReadFile("static/curr_region_enc_key.pem")
 	if err != nil {
-		log.Error("open curr_region_enc_key.pem error: %v", err)
+		logger.LOG.Error("open curr_region_enc_key.pem error: %v", err)
 		return nil, nil, nil
 	}
 	pwdRsaKey, err = ioutil.ReadFile("static/account_password_key.pem")
 	if err != nil {
-		log.Error("open account_password_key.pem error: %v", err)
+		logger.LOG.Error("open account_password_key.pem error: %v", err)
 		return nil, nil, nil
 	}
 	return signRsaKey, encRsaKey, pwdRsaKey
 }
 
-func InitRegion(log *logger.Logger, kcpAddr string, kcpPort int) (*proto.QueryCurrRegionHttpRsp, *proto.QueryRegionListHttpRsp) {
+func InitRegion(kcpAddr string, kcpPort int) (*proto.QueryCurrRegionHttpRsp, *proto.QueryRegionListHttpRsp) {
 	dispatchKey, err := ioutil.ReadFile("static/dispatchKey.bin")
 	if err != nil {
-		log.Error("open dispatchKey.bin error: %v", err)
+		logger.LOG.Error("open dispatchKey.bin error: %v", err)
 		return nil, nil
 	}
 	dispatchSeed, err := ioutil.ReadFile("static/dispatchSeed.bin")
 	if err != nil {
-		log.Error("open dispatchSeed.bin error: %v", err)
+		logger.LOG.Error("open dispatchSeed.bin error: %v", err)
 		return nil, nil
 	}
 	// RegionCurr

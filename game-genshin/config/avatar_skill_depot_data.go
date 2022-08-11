@@ -3,7 +3,8 @@ package config
 import (
 	"encoding/json"
 	"flswld.com/common/utils/endec"
-	"game-genshin/game/constant"
+	"flswld.com/logger"
+	"game-genshin/constant"
 	"io/ioutil"
 )
 
@@ -37,31 +38,31 @@ func (g *GameDataConfig) loadAvatarSkillDepotData() {
 	for _, fileName := range fileNameList {
 		fileData, err := ioutil.ReadFile(g.excelBinPrefix + fileName)
 		if err != nil {
-			g.log.Error("open file error: %v", err)
+			logger.LOG.Error("open file error: %v", err)
 			continue
 		}
 		list := make([]map[string]any, 0)
 		err = json.Unmarshal(fileData, &list)
 		if err != nil {
-			g.log.Error("parse file error: %v", err)
+			logger.LOG.Error("parse file error: %v", err)
 			continue
 		}
 		for _, v := range list {
 			i, err := json.Marshal(v)
 			if err != nil {
-				g.log.Error("parse file error: %v", err)
+				logger.LOG.Error("parse file error: %v", err)
 				continue
 			}
 			avatarSkillDepotData := new(AvatarSkillDepotData)
 			err = json.Unmarshal(i, avatarSkillDepotData)
 			if err != nil {
-				g.log.Error("parse file error: %v", err)
+				logger.LOG.Error("parse file error: %v", err)
 				continue
 			}
 			g.AvatarSkillDepotDataMap[avatarSkillDepotData.Id] = avatarSkillDepotData
 		}
 	}
-	g.log.Info("load %v AvatarSkillDepotData", len(g.AvatarSkillDepotDataMap))
+	logger.LOG.Info("load %v AvatarSkillDepotData", len(g.AvatarSkillDepotDataMap))
 	elementTypeConst := constant.GetElementTypeConst()
 	for _, v := range g.AvatarSkillDepotDataMap {
 		// set energy skill data

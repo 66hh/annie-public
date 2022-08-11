@@ -17,17 +17,17 @@ import (
 
 func main() {
 	filePath := "./application.toml"
-	conf := config.NewConfig(filePath)
+	config.InitConfig(filePath)
 
-	log := logger.NewLogger(conf)
-	log.Info("gate genshin start")
+	logger.InitLogger()
+	logger.LOG.Info("gate genshin start")
 
 	// 用户服务
-	rpcUserConsumer := light.NewRpcConsumer(conf, log, "annie-user-app")
+	rpcUserConsumer := light.NewRpcConsumer("annie-user-app")
 
-	db := dao.NewDao(conf, log)
+	db := dao.NewDao()
 
-	_ = controller.NewController(conf, log, db, rpcUserConsumer)
+	_ = controller.NewController(db, rpcUserConsumer)
 
 	kcpEventInput := make(chan *net.KcpEvent)
 	kcpEventOutput := make(chan *net.KcpEvent)
@@ -36,24 +36,24 @@ func main() {
 	protoMsgInput := make(chan *net.ProtoMsg, 1000)
 	protoMsgOutput := make(chan *net.ProtoMsg, 1000)
 
-	connectManager := net.NewKcpConnectManager(conf, log, kcpEventInput, kcpEventOutput, kcpMsgInput, kcpMsgOutput)
-	protoEnDecode := net.NewProtoEnDecode(log, kcpMsgInput, kcpMsgOutput, protoMsgInput, protoMsgOutput)
+	connectManager := net.NewKcpConnectManager(kcpEventInput, kcpEventOutput, kcpMsgInput, kcpMsgOutput)
+	protoEnDecode := net.NewProtoEnDecode(kcpMsgInput, kcpMsgOutput, protoMsgInput, protoMsgOutput)
 	connectManager.Start()
 	protoEnDecode.Start()
 
-	gameServiceConsumer := light.NewRpcConsumer(conf, log, "game-genshin-app")
-	rpcManager := rpc.NewRpcManager(conf, log, db, gameServiceConsumer, protoMsgInput, protoMsgOutput, kcpEventInput, kcpEventOutput)
-	rpcMsgProvider := light.NewRpcProvider(conf, log, rpcManager)
+	gameServiceConsumer := light.NewRpcConsumer("game-genshin-app")
+	rpcManager := rpc.NewRpcManager(db, gameServiceConsumer, protoMsgInput, protoMsgOutput, kcpEventInput, kcpEventOutput)
+	rpcMsgProvider := light.NewRpcProvider(rpcManager)
 	rpcManager.Start()
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
 	for {
 		s := <-c
-		log.Info("get a signal %s", s.String())
+		logger.LOG.Info("get a signal %s", s.String())
 		switch s {
 		case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT:
-			log.Info("gate genshin exit")
+			logger.LOG.Info("gate genshin exit")
 			db.CloseDao()
 			rpcUserConsumer.CloseRpcConsumer()
 			rpcMsgProvider.CloseRpcProvider()

@@ -2,7 +2,7 @@ package game
 
 import (
 	"flswld.com/common/utils/alg"
-	"game-genshin/game/constant"
+	"game-genshin/constant"
 	"game-genshin/model"
 )
 

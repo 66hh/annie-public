@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"flswld.com/logger"
 	dbEntity "gate-genshin/entity/db"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -55,7 +56,7 @@ func (d *Dao) InsertAccount(account *dbEntity.Account) (primitive.ObjectID, erro
 	} else {
 		_id, ok := id.InsertedID.(primitive.ObjectID)
 		if !ok {
-			d.log.Error("get insert id error")
+			logger.LOG.Error("get insert id error")
 			return primitive.ObjectID{}, nil
 		}
 		return _id, nil

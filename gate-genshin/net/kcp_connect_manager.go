@@ -38,8 +38,6 @@ type KcpEvent struct {
 }
 
 type KcpConnectManager struct {
-	conf                  *config.Config
-	log                   *logger.Logger
 	openState             bool
 	connMap               map[uint64]*kcp.UDPSession
 	connMapLock           sync.RWMutex
@@ -61,10 +59,8 @@ type KcpConnectManager struct {
 	kcpKeyMapLock sync.RWMutex
 }
 
-func NewKcpConnectManager(conf *config.Config, log *logger.Logger, kcpEventInput chan *KcpEvent, kcpEventOutput chan *KcpEvent, kcpMsgInput chan *KcpMsg, kcpMsgOutput chan *KcpMsg) (r *KcpConnectManager) {
+func NewKcpConnectManager(kcpEventInput chan *KcpEvent, kcpEventOutput chan *KcpEvent, kcpMsgInput chan *KcpMsg, kcpMsgOutput chan *KcpMsg) (r *KcpConnectManager) {
 	r = new(KcpConnectManager)
-	r.conf = conf
-	r.log = log
 	r.openState = true
 	r.connMap = make(map[uint64]*kcp.UDPSession)
 	r.kcpEventInput = kcpEventInput
@@ -84,19 +80,19 @@ func (k *KcpConnectManager) Start() {
 		var err error = nil
 		k.dispatchKey, err = ioutil.ReadFile("static/dispatchKey.bin")
 		if err != nil {
-			k.log.Error("open dispatchKey.bin error")
+			logger.LOG.Error("open dispatchKey.bin error")
 			return
 		}
 		k.secretKey, err = ioutil.ReadFile("static/secretKey.bin")
 		if err != nil {
-			k.log.Error("open secretKey.bin error")
+			logger.LOG.Error("open secretKey.bin error")
 			return
 		}
 		// kcp
-		port := strconv.FormatInt(int64(k.conf.Genshin.KcpPort), 10)
+		port := strconv.FormatInt(int64(config.CONF.Genshin.KcpPort), 10)
 		listener, err := kcp.ListenWithOptions("0.0.0.0:"+port, nil, 0, 0)
 		if err != nil {
-			k.log.Error("listen kcp err: %v", err)
+			logger.LOG.Error("listen kcp err: %v", err)
 			return
 		} else {
 			go k.enetHandle(listener)
@@ -105,7 +101,7 @@ func (k *KcpConnectManager) Start() {
 			for {
 				conn, err := listener.AcceptKCP()
 				if err != nil {
-					k.log.Error("accept kcp err: %v", err)
+					logger.LOG.Error("accept kcp err: %v", err)
 					return
 				}
 				if k.openState == false {
@@ -115,7 +111,7 @@ func (k *KcpConnectManager) Start() {
 				conn.SetACKNoDelay(true)
 				conn.SetWriteDelay(false)
 				convId := conn.GetConv()
-				k.log.Debug("client connect, convId: %v", convId)
+				logger.LOG.Debug("client connect, convId: %v", convId)
 				// 连接建立成功通知
 				k.kcpEventOutput <- &KcpEvent{
 					ConvId:       convId,
@@ -145,7 +141,7 @@ func (k *KcpConnectManager) Start() {
 func (k *KcpConnectManager) enetHandle(listener *kcp.Listener) {
 	for {
 		enetNotify := <-listener.EnetNotify
-		k.log.Info("[Enet Notify], addr: %v, conv: %v, conn: %v, enet: %v", enetNotify.Addr, enetNotify.ConvId, enetNotify.ConnType, enetNotify.EnetType)
+		logger.LOG.Info("[Enet Notify], addr: %v, conv: %v, conn: %v, enet: %v", enetNotify.Addr, enetNotify.ConvId, enetNotify.ConnType, enetNotify.EnetType)
 		switch enetNotify.ConnType {
 		case kcp.ConnEnetSyn:
 			if enetNotify.EnetType == kcp.EnetClientConnectKey {
@@ -179,10 +175,10 @@ func (k *KcpConnectManager) chanSendHandle() {
 			select {
 			case kcpRawSendChan <- kcpMsg:
 			default:
-				k.log.Error("kcpRawSendChan is full, convId: %v", kcpMsg.ConvId)
+				logger.LOG.Error("kcpRawSendChan is full, convId: %v", kcpMsg.ConvId)
 			}
 		} else {
-			k.log.Error("kcpRawSendChan is nil, convId: %v", kcpMsg.ConvId)
+			logger.LOG.Error("kcpRawSendChan is nil, convId: %v", kcpMsg.ConvId)
 		}
 	}
 }
@@ -194,7 +190,7 @@ func (k *KcpConnectManager) recvHandle(convId uint64, conn *kcp.UDPSession) {
 		_ = conn.SetReadDeadline(time.Now().Add(time.Second * 30))
 		recvLen, err := conn.Read(recvBuf)
 		if err != nil {
-			k.log.Error("exit recv loop, conn read err: %v, convId: %v", err, convId)
+			logger.LOG.Error("exit recv loop, conn read err: %v, convId: %v", err, convId)
 			k.closeKcpConn(convId, kcp.EnetServerKick)
 			break
 		}
@@ -223,7 +219,7 @@ func (k *KcpConnectManager) sendHandle(convId uint64, conn *kcp.UDPSession, kcpR
 	for {
 		kcpMsg, ok := <-kcpRawSendChan
 		if !ok {
-			k.log.Error("exit send loop, send chan close, convId: %v", convId)
+			logger.LOG.Error("exit send loop, send chan close, convId: %v", convId)
 			k.closeKcpConn(convId, kcp.EnetServerKick)
 			break
 		}
@@ -231,7 +227,7 @@ func (k *KcpConnectManager) sendHandle(convId uint64, conn *kcp.UDPSession, kcpR
 		_ = conn.SetWriteDeadline(time.Now().Add(time.Second * 10))
 		_, err := conn.Write(bin)
 		if err != nil {
-			k.log.Error("exit send loop, conn write err: %v, convId: %v", err, convId)
+			logger.LOG.Error("exit send loop, conn write err: %v, convId: %v", err, convId)
 			k.closeKcpConn(convId, kcp.EnetServerKick)
 			break
 		}
@@ -307,7 +303,7 @@ func (k *KcpConnectManager) eventHandle() {
 	// 事件处理
 	for {
 		event := <-k.kcpEventInput
-		k.log.Info("kcp manager recv event, ConvId: %v, EventId: %v, EventMessage: %v", event.ConvId, event.EventId, event.EventMessage)
+		logger.LOG.Info("kcp manager recv event, ConvId: %v, EventId: %v, EventMessage: %v", event.ConvId, event.EventId, event.EventMessage)
 		switch event.EventId {
 		case KcpXorKeyChange:
 			// XOR密钥切换
@@ -315,12 +311,12 @@ func (k *KcpConnectManager) eventHandle() {
 			_, exist := k.connMap[event.ConvId]
 			k.connMapLock.RUnlock()
 			if !exist {
-				k.log.Error("conn not exist, convId: %v", event.ConvId)
+				logger.LOG.Error("conn not exist, convId: %v", event.ConvId)
 				continue
 			}
 			flag, ok := event.EventMessage.(string)
 			if !ok {
-				k.log.Error("event KcpXorKeyChange msg type error")
+				logger.LOG.Error("event KcpXorKeyChange msg type error")
 				continue
 			}
 			if flag == "ENC" {
@@ -338,12 +334,12 @@ func (k *KcpConnectManager) eventHandle() {
 			_, exist := k.connMap[event.ConvId]
 			k.connMapLock.RUnlock()
 			if !exist {
-				k.log.Error("conn not exist, convId: %v", event.ConvId)
+				logger.LOG.Error("conn not exist, convId: %v", event.ConvId)
 				continue
 			}
 			flag, ok := event.EventMessage.(string)
 			if !ok {
-				k.log.Error("event KcpXorKeyChange msg type error")
+				logger.LOG.Error("event KcpXorKeyChange msg type error")
 				continue
 			}
 			if flag == "Enable" {
@@ -361,12 +357,12 @@ func (k *KcpConnectManager) eventHandle() {
 			_, exist := k.connMap[event.ConvId]
 			k.connMapLock.RUnlock()
 			if !exist {
-				k.log.Error("conn not exist, convId: %v", event.ConvId)
+				logger.LOG.Error("conn not exist, convId: %v", event.ConvId)
 				continue
 			}
 			flag, ok := event.EventMessage.(string)
 			if !ok {
-				k.log.Error("event KcpXorKeyChange msg type error")
+				logger.LOG.Error("event KcpXorKeyChange msg type error")
 				continue
 			}
 			if flag == "Enable" {
@@ -384,25 +380,25 @@ func (k *KcpConnectManager) eventHandle() {
 			_, exist := k.connMap[event.ConvId]
 			k.connMapLock.RUnlock()
 			if !exist {
-				k.log.Error("conn not exist, convId: %v", event.ConvId)
+				logger.LOG.Error("conn not exist, convId: %v", event.ConvId)
 				continue
 			}
 			reason, ok := event.EventMessage.(uint32)
 			if !ok {
-				k.log.Error("event KcpConnForceClose msg type error")
+				logger.LOG.Error("event KcpConnForceClose msg type error")
 				continue
 			}
 			k.closeKcpConn(event.ConvId, reason)
-			k.log.Info("conn has been force close, convId: %v", event.ConvId)
+			logger.LOG.Info("conn has been force close, convId: %v", event.ConvId)
 		case KcpAllConnForceClose:
 			// 强制关闭所有连接
 			k.closeAllKcpConn()
-			k.log.Info("all conn has been force close")
+			logger.LOG.Info("all conn has been force close")
 		case KcpGateOpenState:
 			// 改变网关开放状态
 			openState, ok := event.EventMessage.(bool)
 			if !ok {
-				k.log.Error("event KcpGateOpenState msg type error")
+				logger.LOG.Error("event KcpGateOpenState msg type error")
 				continue
 			}
 			k.openState = openState

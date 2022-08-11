@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"flswld.com/common/utils/endec"
+	"flswld.com/logger"
 )
 
 /*
@@ -30,7 +31,7 @@ func (k *KcpConnectManager) decodeBinToPayload(data []byte, convId uint64, kcpMs
 	xorKey, exist := k.kcpKeyMap[convId]
 	k.kcpKeyMapLock.RUnlock()
 	if !exist {
-		k.log.Error("kcp xor key not exist, convId: %v", convId)
+		logger.LOG.Error("kcp xor key not exist, convId: %v", convId)
 		return
 	}
 	endec.Xor(data, xorKey.decKey)
@@ -40,12 +41,12 @@ func (k *KcpConnectManager) decodeBinToPayload(data []byte, convId uint64, kcpMs
 func (k *KcpConnectManager) decodeRecur(data []byte, convId uint64, kcpMsgList *[]*KcpMsg) {
 	// 长度太短
 	if len(data) < 12 {
-		k.log.Debug("packet len less 12 byte")
+		logger.LOG.Debug("packet len less 12 byte")
 		return
 	}
 	// 头部标志错误
 	if data[0] != 0x45 || data[1] != 0x67 {
-		k.log.Error("packet head magic 0x4567 error")
+		logger.LOG.Error("packet head magic 0x4567 error")
 		return
 	}
 	// 协议号
@@ -56,7 +57,7 @@ func (k *KcpConnectManager) decodeRecur(data []byte, convId uint64, kcpMsgList *
 	var apiId int64
 	err := binary.Read(apiIdBuffer, binary.BigEndian, &apiId)
 	if err != nil {
-		k.log.Error("packet api id parse fail: %v", err)
+		logger.LOG.Error("packet api id parse fail: %v", err)
 		return
 	}
 	// 头部长度
@@ -67,7 +68,7 @@ func (k *KcpConnectManager) decodeRecur(data []byte, convId uint64, kcpMsgList *
 	var headLen int64
 	err = binary.Read(headLenBuffer, binary.BigEndian, &headLen)
 	if err != nil {
-		k.log.Error("packet head len parse fail: %v", err)
+		logger.LOG.Error("packet head len parse fail: %v", err)
 		return
 	}
 	// proto长度
@@ -80,17 +81,17 @@ func (k *KcpConnectManager) decodeRecur(data []byte, convId uint64, kcpMsgList *
 	var protoLen int64
 	err = binary.Read(protoLenBuffer, binary.BigEndian, &protoLen)
 	if err != nil {
-		k.log.Error("packet proto len parse fail: %v", err)
+		logger.LOG.Error("packet proto len parse fail: %v", err)
 		return
 	}
 	// 检查最小长度
 	if len(data) < int(headLen+protoLen)+12 {
-		k.log.Error("packet len error")
+		logger.LOG.Error("packet len error")
 		return
 	}
 	// 尾部标志错误
 	if data[headLen+protoLen+10] != 0x89 || data[headLen+protoLen+11] != 0xAB {
-		k.log.Error("packet tail magic 0x89AB error")
+		logger.LOG.Error("packet tail magic 0x89AB error")
 		return
 	}
 	// 判断是否有不止一个包
@@ -130,7 +131,7 @@ func (k *KcpConnectManager) encodePayloadToBin(kcpMsg *KcpMsg) (bin []byte) {
 	apiIdBuffer := bytes.NewBuffer([]byte{})
 	err := binary.Write(apiIdBuffer, binary.BigEndian, kcpMsg.ApiId)
 	if err != nil {
-		k.log.Error("api id encode err: %v", err)
+		logger.LOG.Error("api id encode err: %v", err)
 		return nil
 	}
 	bin[2] = (apiIdBuffer.Bytes())[0]
@@ -139,7 +140,7 @@ func (k *KcpConnectManager) encodePayloadToBin(kcpMsg *KcpMsg) (bin []byte) {
 	headLenBuffer := bytes.NewBuffer([]byte{})
 	err = binary.Write(headLenBuffer, binary.BigEndian, uint16(len(kcpMsg.HeadData)))
 	if err != nil {
-		k.log.Error("head len encode err: %v", err)
+		logger.LOG.Error("head len encode err: %v", err)
 		return nil
 	}
 	bin[4] = (headLenBuffer.Bytes())[0]
@@ -148,7 +149,7 @@ func (k *KcpConnectManager) encodePayloadToBin(kcpMsg *KcpMsg) (bin []byte) {
 	protoLenBuffer := bytes.NewBuffer([]byte{})
 	err = binary.Write(protoLenBuffer, binary.BigEndian, uint32(len(kcpMsg.ProtoData)))
 	if err != nil {
-		k.log.Error("proto len encode err: %v", err)
+		logger.LOG.Error("proto len encode err: %v", err)
 		return nil
 	}
 	bin[6] = (protoLenBuffer.Bytes())[0]
@@ -167,7 +168,7 @@ func (k *KcpConnectManager) encodePayloadToBin(kcpMsg *KcpMsg) (bin []byte) {
 	xorKey, exist := k.kcpKeyMap[kcpMsg.ConvId]
 	k.kcpKeyMapLock.RUnlock()
 	if !exist {
-		k.log.Error("kcp xor key not exist, convId: %v", kcpMsg.ConvId)
+		logger.LOG.Error("kcp xor key not exist, convId: %v", kcpMsg.ConvId)
 		return
 	}
 	endec.Xor(bin, xorKey.encKey)

@@ -63,4 +63,12 @@ func init() {
 	gob.Register(&AvatarTeamUpdateNotify{})
 	gob.Register(&ChooseCurAvatarTeamReq{})
 	gob.Register(&ChooseCurAvatarTeamRsp{})
+	gob.Register(&StoreItemChangeNotify{})
+	gob.Register(&ItemAddHintNotify{})
+	gob.Register(&StoreItemDelNotify{})
+	gob.Register(&PlayerPropNotify{})
+	gob.Register(&Item_Material{})
+	gob.Register(&GetGachaInfoRsp{})
+	gob.Register(&DoGachaReq{})
+	gob.Register(&DoGachaRsp{})
 }

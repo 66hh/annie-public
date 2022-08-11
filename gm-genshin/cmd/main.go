@@ -13,31 +13,31 @@ import (
 
 func main() {
 	filePath := "./application.toml"
-	conf := config.NewConfig(filePath)
+	config.InitConfig(filePath)
 
-	log := logger.NewLogger(conf)
-	log.Info("gm genshin start")
+	logger.InitLogger()
+	logger.LOG.Info("gm genshin start")
 
-	httpProvider := light.NewHttpProvider(conf, log)
+	httpProvider := light.NewHttpProvider()
 
 	// 认证服务
-	rpcWaterAuthConsumer := light.NewRpcConsumer(conf, log, "water-auth")
+	rpcWaterAuthConsumer := light.NewRpcConsumer("water-auth")
 
-	rpcGenshinGatewayConsumer := light.NewRpcConsumer(conf, log, "genshin-gateway")
+	rpcGenshinGatewayConsumer := light.NewRpcConsumer("genshin-gateway")
 
-	_ = controller.NewController(conf, log, rpcWaterAuthConsumer, rpcGenshinGatewayConsumer)
+	_ = controller.NewController(rpcWaterAuthConsumer, rpcGenshinGatewayConsumer)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
 	for {
 		s := <-c
-		log.Info("get a signal %s", s.String())
+		logger.LOG.Info("get a signal %s", s.String())
 		switch s {
 		case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT:
 			rpcWaterAuthConsumer.CloseRpcConsumer()
 			rpcGenshinGatewayConsumer.CloseRpcConsumer()
 			httpProvider.CloseHttpProvider()
-			log.Info("gm genshin exit")
+			logger.LOG.Info("gm genshin exit")
 			time.Sleep(time.Second)
 			return
 		case syscall.SIGHUP:

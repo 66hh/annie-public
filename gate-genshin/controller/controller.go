@@ -15,8 +15,6 @@ import (
 )
 
 type Controller struct {
-	conf             *config.Config
-	log              *logger.Logger
 	dao              *dao.Dao
 	rpcUserConsumer  *light.Consumer
 	regionListBase64 string
@@ -26,25 +24,23 @@ type Controller struct {
 	pwdRsaKey        []byte
 }
 
-func NewController(conf *config.Config, log *logger.Logger, dao *dao.Dao, rpcUserConsumer *light.Consumer) (r *Controller) {
+func NewController(dao *dao.Dao, rpcUserConsumer *light.Consumer) (r *Controller) {
 	r = new(Controller)
-	r.conf = conf
-	r.log = log
 	r.dao = dao
 	r.rpcUserConsumer = rpcUserConsumer
 	r.regionListBase64 = ""
 	r.regionCurrBase64 = ""
-	regionCurr, regionList := region.InitRegion(r.log, r.conf.Genshin.KcpAddr, r.conf.Genshin.KcpPort)
-	r.signRsaKey, r.encRsaKey, r.pwdRsaKey = region.LoadRsaKey(r.log)
+	regionCurr, regionList := region.InitRegion(config.CONF.Genshin.KcpAddr, config.CONF.Genshin.KcpPort)
+	r.signRsaKey, r.encRsaKey, r.pwdRsaKey = region.LoadRsaKey()
 	regionCurrModify, err := pb.Marshal(regionCurr)
 	if err != nil {
-		log.Error("Marshal QueryCurrRegionHttpRsp error")
+		logger.LOG.Error("Marshal QueryCurrRegionHttpRsp error")
 		return nil
 	}
 	r.regionCurrBase64 = base64.StdEncoding.EncodeToString(regionCurrModify)
 	regionListModify, err := pb.Marshal(regionList)
 	if err != nil {
-		log.Error("Marshal QueryRegionListHttpRsp error")
+		logger.LOG.Error("Marshal QueryRegionListHttpRsp error")
 		return nil
 	}
 	r.regionListBase64 = base64.StdEncoding.EncodeToString(regionListModify)
@@ -53,7 +49,7 @@ func NewController(conf *config.Config, log *logger.Logger, dao *dao.Dao, rpcUse
 }
 
 func (c *Controller) runEngine() {
-	if c.conf.Logger.Level == "DEBUG" {
+	if config.CONF.Logger.Level == "DEBUG" {
 		gin.SetMode(gin.DebugMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
@@ -61,29 +57,29 @@ func (c *Controller) runEngine() {
 	go func() {
 		engine := c.registerRouter()
 		engine.Use(c.tlsHandler())
-		port := c.conf.Genshin.HttpsPort
+		port := config.CONF.Genshin.HttpsPort
 		addr := ":" + strconv.FormatInt(int64(port), 10)
 		err := engine.RunTLS(addr, "static/server.crt", "static/server.key")
 		if err != nil {
-			c.log.Error("gin run error: %v", err)
+			logger.LOG.Error("gin run error: %v", err)
 		}
 	}()
 	go func() {
 		engine := c.registerRouter()
-		port := c.conf.Genshin.HttpPortA
+		port := config.CONF.Genshin.HttpPortA
 		addr := ":" + strconv.FormatInt(int64(port), 10)
 		err := engine.Run(addr)
 		if err != nil {
-			c.log.Error("gin run error: %v", err)
+			logger.LOG.Error("gin run error: %v", err)
 		}
 	}()
 	go func() {
 		engine := c.registerRouter()
-		port := c.conf.Genshin.HttpPortB
+		port := config.CONF.Genshin.HttpPortB
 		addr := ":" + strconv.FormatInt(int64(port), 10)
 		err := engine.Run(addr)
 		if err != nil {
-			c.log.Error("gin run error: %v", err)
+			logger.LOG.Error("gin run error: %v", err)
 		}
 	}()
 }
@@ -93,7 +89,7 @@ func (c *Controller) registerRouter() *gin.Engine {
 	{
 		// 404
 		engine.NoRoute(func(context *gin.Context) {
-			c.log.Info("no route find, fallback to fuck mhy, url: %v", context.Request.RequestURI)
+			logger.LOG.Info("no route find, fallback to fuck mhy, url: %v", context.Request.RequestURI)
 			context.Header("Content-type", "text/html; charset=UTF-8")
 			context.Status(http.StatusNotFound)
 			_, _ = context.Writer.WriteString("FUCK MHY")
@@ -178,7 +174,7 @@ func (c *Controller) tlsHandler() gin.HandlerFunc {
 		})
 		err := s.Process(context.Writer, context.Request)
 		if err != nil {
-			c.log.Error("gin listen tls error")
+			logger.LOG.Error("gin listen tls error")
 			return
 		}
 		context.Next()

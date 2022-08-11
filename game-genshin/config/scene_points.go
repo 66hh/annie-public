@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"flswld.com/logger"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -37,7 +38,7 @@ func (g *GameDataConfig) loadScenePoints() {
 	dirPath := g.binPrefix + "Scene/Point"
 	fileList, err := ioutil.ReadDir(dirPath)
 	if err != nil {
-		g.log.Error("open dir error: %v", err)
+		logger.LOG.Error("open dir error: %v", err)
 		return
 	}
 	for _, file := range fileList {
@@ -48,19 +49,19 @@ func (g *GameDataConfig) loadScenePoints() {
 		startIndex := strings.Index(fileName, "scene")
 		endIndex := strings.Index(fileName, "_point.json")
 		if startIndex == -1 || endIndex == -1 || startIndex+5 > endIndex {
-			g.log.Error("file name format error: %v", fileName)
+			logger.LOG.Error("file name format error: %v", fileName)
 			continue
 		}
 		sceneId := fileName[startIndex+5 : endIndex]
 		fileData, err := ioutil.ReadFile(dirPath + "/" + fileName)
 		if err != nil {
-			g.log.Error("open file error: %v", err)
+			logger.LOG.Error("open file error: %v", err)
 			continue
 		}
 		scenePointConfig := new(ScenePointConfig)
 		err = json.Unmarshal(fileData, scenePointConfig)
 		if err != nil {
-			g.log.Error("parse file error: %v", err)
+			logger.LOG.Error("parse file error: %v", err)
 			continue
 		}
 		if len(scenePointConfig.Points) == 0 {
@@ -69,7 +70,7 @@ func (g *GameDataConfig) loadScenePoints() {
 		for k, v := range scenePointConfig.Points {
 			sceneIdInt32, err := strconv.ParseInt(k, 10, 32)
 			if err != nil {
-				g.log.Error("parse file error: %v", err)
+				logger.LOG.Error("parse file error: %v", err)
 				continue
 			}
 			v.Id = int32(sceneIdInt32)
@@ -80,5 +81,5 @@ func (g *GameDataConfig) loadScenePoints() {
 			g.ScenePointEntries[scenePointEntry.Name] = scenePointEntry
 		}
 	}
-	g.log.Info("load %v ScenePointEntries", len(g.ScenePointEntries))
+	logger.LOG.Info("load %v ScenePointEntries", len(g.ScenePointEntries))
 }
