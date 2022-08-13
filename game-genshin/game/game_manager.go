@@ -12,6 +12,8 @@ type GameManager struct {
 	netMsgInput  chan *api.NetMsg
 	netMsgOutput chan *api.NetMsg
 	snowflake    *alg.SnowflakeWorker
+	// 本地事件队列管理器
+	localEventManager *LocalEventManager
 	// 接口路由管理器
 	routeManager *RouteManager
 	// 用户管理器
@@ -28,18 +30,32 @@ func NewGameManager(dao *dao.Dao, netMsgInput chan *api.NetMsg, netMsgOutput cha
 	r.netMsgInput = netMsgInput
 	r.netMsgOutput = netMsgOutput
 	r.snowflake = alg.NewSnowflakeWorker(1)
+	r.localEventManager = NewLocalEventManager(r)
 	r.routeManager = NewRouteManager(r)
-	r.userManager = NewUserManager(dao)
+	r.userManager = NewUserManager(dao, r.localEventManager.localEventChan)
 	r.worldManager = NewWorldManager(r.snowflake)
 	r.tickManager = NewTickManager(r)
 	return r
 }
 
 func (g *GameManager) Start() {
-	g.userManager.StartAutoSaveUser()
 	g.routeManager.InitRoute()
-	g.routeManager.StartRouteHandle(g.netMsgInput)
-	g.tickManager.Start()
+	g.userManager.StartAutoSaveUser()
+	go func() {
+		for {
+			select {
+			case netMsg := <-g.netMsgInput:
+				// 接收客户端消息
+				g.routeManager.RouteHandle(netMsg)
+			case <-g.tickManager.ticker.C:
+				// 游戏服务器定时帧
+				g.tickManager.OnGameServerTick()
+			case localEvent := <-g.localEventManager.localEventChan:
+				// 处理本地事件
+				g.localEventManager.LocalEventHandle(localEvent)
+			}
+		}
+	}()
 }
 
 // 发送消息给客户端

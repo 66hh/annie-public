@@ -8,18 +8,24 @@ import (
 	"flswld.com/logger"
 	gdc "game-genshin/config"
 	"game-genshin/constant"
+	"game-genshin/model"
 	"strconv"
 	"time"
 )
 
-func (g *GameManager) OnLoginOk(userId uint32) {
+func (g *GameManager) OnLogin(userId uint32) {
 	logger.LOG.Info("user login, user id: %v", userId)
-	player := g.userManager.GetTargetUser(userId)
+	player, asyncWait := g.userManager.OnlineUser(userId)
+	if !asyncWait {
+		g.OnLoginOk(userId, player)
+	}
+}
+
+func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 	if player == nil {
 		g.SendMsg(api.ApiDoSetPlayerBornDataNotify, userId, nil, nil)
 		return
 	}
-
 	// 创建世界
 	world := g.worldManager.CreateWorld(player)
 	world.AddPlayer(player, player.SceneId)
@@ -30,7 +36,7 @@ func (g *GameManager) OnLoginOk(userId uint32) {
 	playerPropertyConst := constant.GetPlayerPropertyConst()
 	player.Properties[playerPropertyConst.PROP_PLAYER_MP_SETTING_TYPE] = uint32(player.MpSetting.Number())
 	player.Properties[playerPropertyConst.PROP_IS_MP_MODE_AVAILABLE] = 1
-	g.userManager.UpdateUser(player)
+	//g.userManager.UpdateUser(player)
 	player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId)
 
 	// PacketPlayerDataNotify
@@ -253,7 +259,7 @@ func (g *GameManager) OnLoginOk(userId uint32) {
 	playerEnterSceneNotify.SceneTransaction = "3-" + strconv.FormatInt(int64(player.PlayerID), 10) + "-" + strconv.FormatInt(time.Now().Unix(), 10) + "-" + "18402"
 	g.SendMsg(api.ApiPlayerEnterSceneNotify, userId, nil, playerEnterSceneNotify)
 
-	g.userManager.UpdateUser(player)
+	//g.userManager.UpdateUser(player)
 
 	// PacketOpenStateUpdateNotify
 	openStateUpdateNotify := new(proto.OpenStateUpdateNotify)
@@ -268,6 +274,18 @@ func (g *GameManager) OnLoginOk(userId uint32) {
 
 func (g *GameManager) OnUserOffline(userId uint32) {
 	logger.LOG.Info("user offline, user id: %v", userId)
-	player := g.userManager.GetTargetUser(userId)
-	g.userManager.UpdateUser(player)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
+	world := g.worldManager.GetWorldByID(player.WorldId)
+	scene := world.GetSceneById(player.SceneId)
+	scene.RemovePlayer(player)
+	world.RemovePlayer(player)
+	if world.owner.PlayerID == player.PlayerID {
+		// 房主离线清空所有玩家并销毁世界
+		g.worldManager.DestroyWorld(player.WorldId)
+	}
+	g.userManager.OfflineUser(player)
 }

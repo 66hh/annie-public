@@ -56,19 +56,13 @@ func (r *RouteManager) InitRoute() {
 	r.registerRouter(api.ApiDoGachaReq, r.gameManager.DoGachaReq)                             // 抽卡请求
 }
 
-func (r *RouteManager) StartRouteHandle(netMsgInput chan *api.NetMsg) {
-	// 接收客户端消息协程
-	go func() {
-		for {
-			netMsg := <-netMsgInput
-			switch netMsg.EventId {
-			case api.NormalMsg:
-				r.doRoute(netMsg.ApiId, netMsg.UserId, netMsg.HeadMessage, netMsg.PayloadMessage)
-			case api.UserLogin:
-				r.gameManager.OnLoginOk(netMsg.UserId)
-			case api.UserOffline:
-				r.gameManager.OnUserOffline(netMsg.UserId)
-			}
-		}
-	}()
+func (r *RouteManager) RouteHandle(netMsg *api.NetMsg) {
+	switch netMsg.EventId {
+	case api.NormalMsg:
+		r.doRoute(netMsg.ApiId, netMsg.UserId, netMsg.HeadMessage, netMsg.PayloadMessage)
+	case api.UserLogin:
+		r.gameManager.OnLogin(netMsg.UserId)
+	case api.UserOffline:
+		r.gameManager.OnUserOffline(netMsg.UserId)
+	}
 }

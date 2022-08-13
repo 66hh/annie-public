@@ -1,5 +1,6 @@
 [genshin]
 resource_path = "C:/Users/FlourishingWorld/Desktop/GI/GameDataConfigTable"
+gacha_history_server = "http://172.16.2.155:9004"
 
 [logger]
 level = "DEBUG"

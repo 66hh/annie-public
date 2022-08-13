@@ -45,6 +45,14 @@ func (w *WorldManager) CreateWorld(owner *model.Player) *World {
 	return world
 }
 
+func (w *WorldManager) DestroyWorld(worldId uint32) {
+	world := w.GetWorldByID(worldId)
+	for _, player := range world.playerMap {
+		world.RemovePlayer(player)
+	}
+	delete(w.worldMap, worldId)
+}
+
 type World struct {
 	id              uint32
 	owner           *model.Player

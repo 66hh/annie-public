@@ -4,6 +4,7 @@ import (
 	"flswld.com/gate-genshin-api/api"
 	"flswld.com/gate-genshin-api/api/proto"
 	"flswld.com/logger"
+	gdc "game-genshin/config"
 	"game-genshin/constant"
 )
 
@@ -12,10 +13,46 @@ type UserItem struct {
 	ChangeCount uint32
 }
 
+func (g *GameManager) GetAllItemDataConfig() map[int32]*gdc.ItemData {
+	allItemDataConfig := make(map[int32]*gdc.ItemData)
+	itemTypeConst := constant.GetItemTypeConst()
+	for itemId, itemData := range gdc.CONF.ItemDataMap {
+		if itemData.ItemEnumType == itemTypeConst.ITEM_WEAPON {
+			// 排除武器
+			continue
+		}
+		if itemData.ItemEnumType == itemTypeConst.ITEM_RELIQUARY {
+			// 排除圣遗物
+			continue
+		}
+		if itemId == 100086 ||
+			itemId == 100087 ||
+			(itemId >= 100100 && itemId <= 101000) ||
+			(itemId >= 101106 && itemId <= 101110) ||
+			itemId == 101306 ||
+			(itemId >= 101500 && itemId <= 104000) ||
+			itemId == 105001 ||
+			itemId == 105004 ||
+			(itemId >= 106000 && itemId <= 107000) ||
+			itemId == 107011 ||
+			itemId == 108000 ||
+			(itemId >= 109000 && itemId <= 110000) ||
+			(itemId >= 115000 && itemId <= 130000) ||
+			(itemId >= 200200 && itemId <= 200899) ||
+			itemId == 220050 ||
+			itemId == 220054 {
+			// 排除无效道具
+			continue
+		}
+		allItemDataConfig[itemId] = itemData
+	}
+	return allItemDataConfig
+}
+
 func (g *GameManager) AddUserItem(userId uint32, itemList []*UserItem, isHint bool) {
-	player := g.userManager.GetTargetUser(userId)
+	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
-		logger.LOG.Error("player not found, user id: %v", userId)
+		logger.LOG.Error("player is nil, userId: %v", userId)
 		return
 	}
 	for _, userItem := range itemList {
@@ -76,9 +113,9 @@ func (g *GameManager) AddUserItem(userId uint32, itemList []*UserItem, isHint bo
 }
 
 func (g *GameManager) CostUserItem(userId uint32, itemList []*UserItem) {
-	player := g.userManager.GetTargetUser(userId)
+	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
-		logger.LOG.Error("player not found, user id: %v", userId)
+		logger.LOG.Error("player is nil, userId: %v", userId)
 		return
 	}
 	for _, userItem := range itemList {

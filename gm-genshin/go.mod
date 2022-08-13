@@ -46,4 +46,8 @@ require flswld.com/water-api v0.0.0-incompatible
 
 replace flswld.com/water-api => ../../water-api
 
+// gin
 require github.com/gin-gonic/gin v1.6.3
+
+// jwt
+require github.com/golang-jwt/jwt/v4 v4.4.0

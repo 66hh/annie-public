@@ -71,4 +71,5 @@ func init() {
 	gob.Register(&GetGachaInfoRsp{})
 	gob.Register(&DoGachaReq{})
 	gob.Register(&DoGachaRsp{})
+	gob.Register(&Item_Furniture{})
 }

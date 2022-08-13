@@ -10,6 +10,7 @@ const (
 	DbDelete
 	DbUpdate
 	DbNormal
+	DbOffline
 )
 
 type Player struct {
@@ -29,6 +30,7 @@ type Player struct {
 	ReliquaryMap          map[uint64]*Reliquary `bson:"reliquaryMap"` // 玩家圣遗物背包
 	TeamConfig            *TeamInfo             `bson:"teamConfig"`   // 队伍配置
 	AvatarMap             map[uint32]*Avatar    `bson:"avatarMap"`    // 角色信息
+	DropInfo              *DropInfo             `bson:"dropInfo"`     // 掉落信息
 	EnterSceneToken       uint32                `bson:"-"`            // 玩家的世界进入令牌
 	DbState               int                   `bson:"-"`            // 数据库存档状态
 	WorldId               uint32                `bson:"-"`            // 所在的世界id

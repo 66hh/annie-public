@@ -1,6 +1,8 @@
 package game
 
 import (
+	"encoding/json"
+	"flswld.com/gate-genshin-api/api/proto"
 	"flswld.com/logger"
 	"game-genshin/dao"
 	"game-genshin/model"
@@ -9,39 +11,91 @@ import (
 )
 
 type UserManager struct {
-	dao           *dao.Dao
-	playerMap     map[uint32]*model.Player
-	playerMapLock sync.RWMutex
+	dao            *dao.Dao
+	playerMap      map[uint32]*model.Player
+	playerMapLock  sync.RWMutex
+	localEventChan chan *LocalEvent
 }
 
-func NewUserManager(dao *dao.Dao) (r *UserManager) {
+func NewUserManager(dao *dao.Dao, localEventChan chan *LocalEvent) (r *UserManager) {
 	r = new(UserManager)
 	r.dao = dao
 	r.playerMap = make(map[uint32]*model.Player)
+	r.localEventChan = localEventChan
 	return r
 }
 
-func (u *UserManager) GetTargetUser(userId uint32) *model.Player {
+func (u *UserManager) GetTargetUserOnlineState(userId uint32) bool {
+	u.playerMapLock.RLock()
+	_, exist := u.playerMap[userId]
+	u.playerMapLock.RUnlock()
+	return exist
+}
+
+func (u *UserManager) GetOnlineUser(userId uint32) *model.Player {
+	u.playerMapLock.RLock()
+	player := u.playerMap[userId]
+	u.playerMapLock.RUnlock()
+	return player
+}
+
+type PlayerRegInfo struct {
+	Exist  bool
+	Req    *proto.SetPlayerBornDataReq
+	UserId uint32
+}
+
+func (u *UserManager) CheckUserExistOnReg(userId uint32, req *proto.SetPlayerBornDataReq) (exist bool, asyncWait bool) {
+	u.playerMapLock.RLock()
+	_, exist = u.playerMap[userId]
+	u.playerMapLock.RUnlock()
+	if exist {
+		return true, false
+	} else {
+		go func() {
+			player := u.loadUserFromDb(userId)
+			exist = false
+			if player != nil {
+				exist = true
+			}
+			u.localEventChan <- &LocalEvent{
+				EventId: CheckUserExistOnRegFromDbFinish,
+				Msg: &PlayerRegInfo{
+					Exist:  exist,
+					Req:    req,
+					UserId: userId,
+				},
+			}
+		}()
+		return false, true
+	}
+}
+
+func (u *UserManager) LoadOfflineUserSync(userId uint32) *model.Player {
 	u.playerMapLock.RLock()
 	player, exist := u.playerMap[userId]
 	u.playerMapLock.RUnlock()
 	if exist {
 		return player
 	} else {
-		return u.LoadUserFromDb(userId)
+		player = u.loadUserFromDb(userId)
+		if player == nil {
+			return nil
+		}
+		player.DbState = model.DbOffline
+		u.playerMapLock.Lock()
+		u.playerMap[player.PlayerID] = player
+		u.playerMapLock.Unlock()
+		return player
 	}
 }
 
-func (u *UserManager) LoadUserFromDb(userId uint32) *model.Player {
+func (u *UserManager) loadUserFromDb(userId uint32) *model.Player {
 	player, err := u.dao.QueryPlayerByID(userId)
 	if err != nil {
 		logger.LOG.Error("query player error: %v", err)
 		return nil
 	}
-	player.DbState = model.DbNormal
-	u.playerMapLock.Lock()
-	u.playerMap[player.PlayerID] = player
-	u.playerMapLock.Unlock()
 	return player
 }
 
@@ -56,6 +110,9 @@ func (u *UserManager) AddUser(player *model.Player) {
 }
 
 func (u *UserManager) DeleteUser(player *model.Player) {
+	if player == nil {
+		return
+	}
 	u.ChangeUserDbState(player, model.DbDelete)
 	u.playerMapLock.Lock()
 	u.playerMap[player.PlayerID] = player
@@ -67,6 +124,48 @@ func (u *UserManager) UpdateUser(player *model.Player) {
 		return
 	}
 	u.ChangeUserDbState(player, model.DbUpdate)
+	u.playerMapLock.Lock()
+	u.playerMap[player.PlayerID] = player
+	u.playerMapLock.Unlock()
+}
+
+type PlayerLoginInfo struct {
+	UserId uint32
+	Player *model.Player
+}
+
+func (u *UserManager) OnlineUser(userId uint32) (player *model.Player, asyncWait bool) {
+	u.playerMapLock.RLock()
+	player, exist := u.playerMap[userId]
+	u.playerMapLock.RUnlock()
+	if exist {
+		return player, false
+	} else {
+		go func() {
+			player = u.loadUserFromDb(userId)
+			if player != nil {
+				player.DbState = model.DbNormal
+				u.playerMapLock.Lock()
+				u.playerMap[player.PlayerID] = player
+				u.playerMapLock.Unlock()
+			}
+			u.localEventChan <- &LocalEvent{
+				EventId: LoadLoginUserFromDbFinish,
+				Msg: &PlayerLoginInfo{
+					UserId: userId,
+					Player: player,
+				},
+			}
+		}()
+		return nil, true
+	}
+}
+
+func (u *UserManager) OfflineUser(player *model.Player) {
+	if player == nil {
+		return
+	}
+	u.ChangeUserDbState(player, model.DbOffline)
 	u.playerMapLock.Lock()
 	u.playerMap[player.PlayerID] = player
 	u.playerMapLock.Unlock()
@@ -85,17 +184,30 @@ func (u *UserManager) ChangeUserDbState(player *model.Player, state int) {
 	case model.DbUpdate:
 		if state == model.DbDelete {
 			player.DbState = model.DbDelete
+		} else if state == model.DbOffline {
+			player.DbState = model.DbOffline
 		}
 	case model.DbNormal:
 		if state == model.DbDelete {
 			player.DbState = model.DbDelete
 		} else if state == model.DbUpdate {
 			player.DbState = model.DbUpdate
+		} else if state == model.DbOffline {
+			player.DbState = model.DbOffline
+		}
+	case model.DbOffline:
+		if state == model.DbDelete {
+			player.DbState = model.DbDelete
+		} else if state == model.DbUpdate {
+			player.DbState = model.DbUpdate
+		} else if state == model.DbNormal {
+			player.DbState = model.DbNormal
 		}
 	}
 }
 
 func (u *UserManager) StartAutoSaveUser() {
+	// 用户数据库定时同步协程
 	go func() {
 		var ticker *time.Ticker = nil
 		for {
@@ -123,10 +235,19 @@ func (u *UserManager) StartAutoSaveUser() {
 					playerMapTemp[k].DbState = model.DbNormal
 				case model.DbNormal:
 					continue
+				case model.DbOffline:
+					updateList = append(updateList, v)
+					delete(playerMapTemp, k)
 				}
 			}
+			insertListJson, err := json.Marshal(insertList)
+			logger.LOG.Debug("insertList: %v", string(insertListJson))
+			deleteListJson, err := json.Marshal(deleteList)
+			logger.LOG.Debug("deleteList: %v", string(deleteListJson))
+			updateListJson, err := json.Marshal(updateList)
+			logger.LOG.Debug("updateList: %v", string(updateListJson))
 			logger.LOG.Info("db state init finish")
-			err := u.dao.InsertPlayerList(insertList)
+			err = u.dao.InsertPlayerList(insertList)
 			if err != nil {
 				logger.LOG.Error("insert player list error: %v", err)
 			}

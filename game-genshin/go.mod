@@ -28,6 +28,12 @@ replace flswld.com/gate-genshin-api => ../../gate-genshin-api
 // mongodb
 require go.mongodb.org/mongo-driver v1.8.3
 
+// jwt
+require github.com/golang-jwt/jwt/v4 v4.4.0
+
+// csv
+require github.com/jszwec/csvutil v1.7.1
+
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect

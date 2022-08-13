@@ -28,112 +28,127 @@ func (g *GameManager) PlayerSetPauseReq(userId uint32, headMsg *api.PacketHead, 
 }
 
 func (g *GameManager) SetPlayerBornDataReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user set born data, user id: %v", userId)
+	logger.LOG.Debug("user set born data, user id: %v", userId)
 	if headMsg != nil {
 		logger.LOG.Debug("client sequence id: %v", headMsg.ClientSequenceId)
 	}
-	user := g.userManager.GetTargetUser(userId)
-	if user != nil {
+	if payloadMsg == nil {
+		return
+	}
+	req := payloadMsg.(*proto.SetPlayerBornDataReq)
+	logger.LOG.Debug("avatar id: %v, nickname: %v", req.AvatarId, req.NickName)
+
+	exist, asyncWait := g.userManager.CheckUserExistOnReg(userId, req)
+	if !asyncWait {
+		g.PlayerReg(exist, req, userId)
+	}
+}
+
+func (g *GameManager) PlayerReg(exist bool, req *proto.SetPlayerBornDataReq, userId uint32) {
+	if exist {
 		logger.LOG.Error("recv set born data req, but user is already exist, userId: %v", userId)
 		return
 	}
-	if payloadMsg != nil {
-		req := payloadMsg.(*proto.SetPlayerBornDataReq)
-		logger.LOG.Debug("avatar id: %v, nickname: %v", req.AvatarId, req.NickName)
 
-		mainCharAvatarId := req.GetAvatarId()
-		if mainCharAvatarId != 10000005 && mainCharAvatarId != 10000007 {
-			logger.LOG.Error("invalid main char avatar id: %v", mainCharAvatarId)
-			return
+	mainCharAvatarId := req.GetAvatarId()
+	if mainCharAvatarId != 10000005 && mainCharAvatarId != 10000007 {
+		logger.LOG.Error("invalid main char avatar id: %v", mainCharAvatarId)
+		return
+	}
+
+	player := new(model.Player)
+	player.PlayerID = userId
+	player.NickName = req.NickName
+
+	player.RegionId = 1
+	player.SceneId = 3
+
+	player.Properties = make(map[uint16]uint32)
+	playerPropertyConst := constant.GetPlayerPropertyConst()
+	// 初始化所有属性
+	propList := reflection.ConvStructToMap(playerPropertyConst)
+	for fieldName, fieldValue := range propList {
+		if fieldName == "PROP_EXP" ||
+			fieldName == "PROP_BREAK_LEVEL" ||
+			fieldName == "PROP_SATIATION_VAL" ||
+			fieldName == "PROP_SATIATION_PENALTY_TIME" ||
+			fieldName == "PROP_LEVEL" {
+			continue
 		}
+		value := fieldValue.(uint16)
+		player.Properties[value] = 0
+	}
+	player.Properties[playerPropertyConst.PROP_PLAYER_LEVEL] = 60
+	player.Properties[playerPropertyConst.PROP_IS_SPRING_AUTO_USE] = 1
+	player.Properties[playerPropertyConst.PROP_SPRING_AUTO_USE_PERCENT] = 50
+	player.Properties[playerPropertyConst.PROP_IS_FLYABLE] = 1
+	player.Properties[playerPropertyConst.PROP_IS_TRANSFERABLE] = 1
+	player.Properties[playerPropertyConst.PROP_MAX_STAMINA] = 24000
+	player.Properties[playerPropertyConst.PROP_CUR_PERSIST_STAMINA] = 24000
+	player.Properties[playerPropertyConst.PROP_PLAYER_RESIN] = 160
 
-		player := new(model.Player)
-		player.PlayerID = userId
-		player.NickName = req.NickName
+	player.FlyCloakList = make([]uint32, 0)
+	player.FlyCloakList = append(player.FlyCloakList, 140001)
 
-		player.RegionId = 1
-		player.SceneId = 3
+	player.CostumeList = make([]uint32, 0)
 
-		player.Properties = make(map[uint16]uint32)
-		playerPropertyConst := constant.GetPlayerPropertyConst()
-		// 初始化所有属性
-		propList := reflection.ConvStructToMap(playerPropertyConst)
-		for fieldName, fieldValue := range propList {
-			if fieldName == "PROP_EXP" ||
-				fieldName == "PROP_BREAK_LEVEL" ||
-				fieldName == "PROP_SATIATION_VAL" ||
-				fieldName == "PROP_SATIATION_PENALTY_TIME" ||
-				fieldName == "PROP_LEVEL" {
-				continue
-			}
-			value := fieldValue.(uint16)
-			player.Properties[value] = 0
-		}
-		player.Properties[playerPropertyConst.PROP_PLAYER_LEVEL] = 60
-		player.Properties[playerPropertyConst.PROP_IS_SPRING_AUTO_USE] = 1
-		player.Properties[playerPropertyConst.PROP_SPRING_AUTO_USE_PERCENT] = 50
-		player.Properties[playerPropertyConst.PROP_IS_FLYABLE] = 1
-		player.Properties[playerPropertyConst.PROP_IS_TRANSFERABLE] = 1
-		player.Properties[playerPropertyConst.PROP_MAX_STAMINA] = 24000
-		player.Properties[playerPropertyConst.PROP_CUR_PERSIST_STAMINA] = 24000
-		player.Properties[playerPropertyConst.PROP_PLAYER_RESIN] = 160
+	player.Pos = &model.Vector{X: 2747, Y: 194, Z: -1719}
+	player.Rotation = &model.Vector{X: 0, Y: 307, Z: 0}
 
-		player.FlyCloakList = make([]uint32, 0)
-		player.FlyCloakList = append(player.FlyCloakList, 140001)
+	player.MpSetting = proto.MpSettingType_MP_SETTING_TYPE_ENTER_AFTER_APPLY
 
-		player.CostumeList = make([]uint32, 0)
+	player.ItemMap = make(map[uint32]*model.Item)
+	player.WeaponMap = make(map[uint64]*model.Weapon)
+	player.ReliquaryMap = make(map[uint64]*model.Reliquary)
+	player.AvatarMap = make(map[uint32]*model.Avatar)
 
-		player.Pos = &model.Vector{X: 2747, Y: 194, Z: -1719}
-		player.Rotation = &model.Vector{X: 0, Y: 307, Z: 0}
-
-		player.MpSetting = proto.MpSettingType_MP_SETTING_TYPE_ENTER_AFTER_APPLY
-
-		player.ItemMap = make(map[uint32]*model.Item)
-		player.WeaponMap = make(map[uint64]*model.Weapon)
-		player.ReliquaryMap = make(map[uint64]*model.Reliquary)
-		player.AvatarMap = make(map[uint32]*model.Avatar)
-
+	// 选哥哥的福报
+	if mainCharAvatarId == 10000005 {
 		// 添加所有角色
-		for avatarId := range gdc.CONF.AvatarDataMap {
-			if avatarId < 10000002 || avatarId >= 11000000 {
-				// 跳过无效角色
-				continue
-			}
-			if avatarId == 10000005 || avatarId == 10000007 {
-				// 只添加选定的主角
-				if uint32(avatarId) != mainCharAvatarId {
-					continue
-				}
-			}
+		allAvatarDataConfig := g.GetAllAvatarDataConfig()
+		for avatarId, avatarDataConfig := range allAvatarDataConfig {
 			player.AddAvatar(uint32(avatarId))
 			// 添加初始武器
-			avatarDataConfig := gdc.CONF.AvatarDataMap[avatarId]
 			weaponId := uint64(g.snowflake.GenId())
 			player.AddWeapon(uint32(avatarDataConfig.InitialWeapon), weaponId)
 			// 角色装上初始武器
 			player.EquipWeaponToAvatar(uint32(avatarId), weaponId)
 		}
 		// 添加所有武器
-		equipTypeConst := constant.GetEquipTypeConst()
-		for _, itemData := range gdc.CONF.ItemDataMap {
-			if itemData.EquipEnumType == equipTypeConst.EQUIP_WEAPON {
-				weaponId := uint64(g.snowflake.GenId())
-				player.AddWeapon(uint32(itemData.Id), weaponId)
-			}
+		allWeaponDataConfig := g.GetAllWeaponDataConfig()
+		for itemId := range allWeaponDataConfig {
+			weaponId := uint64(g.snowflake.GenId())
+			player.AddWeapon(uint32(itemId), weaponId)
 		}
-
-		player.TeamConfig = model.NewTeamInfo()
-		player.TeamConfig.AddAvatarToTeam(mainCharAvatarId, 0)
-
-		g.userManager.AddUser(player)
-
-		g.SendMsg(api.ApiSetPlayerBornDataRsp, userId, nil, nil)
-		g.OnLoginOk(userId)
+		// 添加所有道具
+		allItemDataConfig := g.GetAllItemDataConfig()
+		for itemId := range allItemDataConfig {
+			player.AddItem(uint32(itemId), 1)
+		}
 	}
+
+	// 添加选定的主角
+	player.AddAvatar(mainCharAvatarId)
+	// 添加初始武器
+	avatarDataConfig := gdc.CONF.AvatarDataMap[int32(mainCharAvatarId)]
+	weaponId := uint64(g.snowflake.GenId())
+	player.AddWeapon(uint32(avatarDataConfig.InitialWeapon), weaponId)
+	// 角色装上初始武器
+	player.EquipWeaponToAvatar(mainCharAvatarId, weaponId)
+
+	player.TeamConfig = model.NewTeamInfo()
+	player.TeamConfig.AddAvatarToTeam(mainCharAvatarId, 0)
+
+	player.DropInfo = model.NewDropInfo()
+
+	g.userManager.AddUser(player)
+
+	g.SendMsg(api.ApiSetPlayerBornDataRsp, userId, nil, nil)
+	g.OnLogin(userId)
 }
 
 func (g *GameManager) GetPlayerSocialDetailReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user get player social detail, user id: %v", userId)
+	logger.LOG.Debug("user get player social detail, user id: %v", userId)
 	// TODO 构造社交信息管理器
 	socialDetail := new(proto.SocialDetail)
 	socialDetail.Uid = userId
@@ -148,15 +163,15 @@ func (g *GameManager) GetPlayerSocialDetailReq(userId uint32, headMsg *api.Packe
 }
 
 func (g *GameManager) EnterSceneReadyReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user enter scene ready, user id: %v", userId)
+	logger.LOG.Debug("user enter scene ready, user id: %v", userId)
 	req := payloadMsg.(*proto.EnterSceneReadyReq)
 	logger.LOG.Debug("EnterSceneReadyReq: %v", req)
-	player := g.userManager.GetTargetUser(userId)
+	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, userId: %v", userId)
 		return
 	}
-	logger.LOG.Info("player.EnterSceneToken: %v", player.EnterSceneToken)
+	logger.LOG.Debug("player.EnterSceneToken: %v", player.EnterSceneToken)
 	enterScenePeerNotify := new(proto.EnterScenePeerNotify)
 	enterScenePeerNotify.DestSceneId = player.SceneId
 	world := g.worldManager.GetWorldByID(player.WorldId)
@@ -171,12 +186,12 @@ func (g *GameManager) EnterSceneReadyReq(userId uint32, headMsg *api.PacketHead,
 }
 
 func (g *GameManager) PathfindingEnterSceneReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user pathfinding enter scene, user id: %v", userId)
+	logger.LOG.Debug("user pathfinding enter scene, user id: %v", userId)
 	g.SendMsg(api.ApiPathfindingEnterSceneRsp, userId, g.getHeadMsg(headMsg.ClientSequenceId), nil)
 }
 
 func (g *GameManager) GetScenePointReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user get scene point, user id: %v", userId)
+	logger.LOG.Debug("user get scene point, user id: %v", userId)
 	req := payloadMsg.(*proto.GetScenePointReq)
 	getScenePointRsp := new(proto.GetScenePointRsp)
 	getScenePointRsp.SceneId = req.SceneId
@@ -192,7 +207,7 @@ func (g *GameManager) GetScenePointReq(userId uint32, headMsg *api.PacketHead, p
 }
 
 func (g *GameManager) GetSceneAreaReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user get scene area, user id: %v", userId)
+	logger.LOG.Debug("user get scene area, user id: %v", userId)
 	req := payloadMsg.(*proto.GetSceneAreaReq)
 	getSceneAreaRsp := new(proto.GetSceneAreaRsp)
 	getSceneAreaRsp.SceneId = req.SceneId
@@ -205,7 +220,7 @@ func (g *GameManager) GetSceneAreaReq(userId uint32, headMsg *api.PacketHead, pa
 }
 
 func (g *GameManager) SceneInitFinishReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user scene init finish, user id: %v", userId)
+	logger.LOG.Debug("user scene init finish, user id: %v", userId)
 
 	// PacketServerTimeNotify
 	serverTimeNotify := new(proto.ServerTimeNotify)
@@ -214,7 +229,11 @@ func (g *GameManager) SceneInitFinishReq(userId uint32, headMsg *api.PacketHead,
 
 	// PacketWorldPlayerInfoNotify
 	worldPlayerInfoNotify := new(proto.WorldPlayerInfoNotify)
-	player := g.userManager.GetTargetUser(userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
 	world := g.worldManager.GetWorldByID(player.WorldId)
 	for _, worldPlayer := range world.playerMap {
 		onlinePlayerInfo := new(proto.OnlinePlayerInfo)
@@ -320,7 +339,7 @@ func (g *GameManager) SceneInitFinishReq(userId uint32, headMsg *api.PacketHead,
 		playerEnterSceneInfoNotify.AvatarEnterInfo = append(playerEnterSceneInfoNotify.AvatarEnterInfo, avatarEnterSceneInfo)
 	}
 	g.SendMsg(api.ApiPlayerEnterSceneInfoNotify, userId, nil, playerEnterSceneInfoNotify)
-	g.userManager.UpdateUser(player)
+	//g.userManager.UpdateUser(player)
 
 	// PacketSceneAreaWeatherNotify
 	sceneAreaWeatherNotify := new(proto.SceneAreaWeatherNotify)
@@ -375,8 +394,12 @@ func (g *GameManager) SceneInitFinishReq(userId uint32, headMsg *api.PacketHead,
 }
 
 func (g *GameManager) EnterSceneDoneReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user enter scene done, user id: %v", userId)
-	player := g.userManager.GetTargetUser(userId)
+	logger.LOG.Debug("user enter scene done, user id: %v", userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
 
 	// PacketEnterSceneDoneRsp
 	enterSceneDoneRsp := new(proto.EnterSceneDoneRsp)
@@ -548,7 +571,7 @@ func (g *GameManager) EnterSceneDoneReq(userId uint32, headMsg *api.PacketHead, 
 }
 
 func (g *GameManager) EnterWorldAreaReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user enter world area, user id: %v", userId)
+	logger.LOG.Debug("user enter world area, user id: %v", userId)
 	req := payloadMsg.(*proto.EnterWorldAreaReq)
 	enterWorldAreaRsp := new(proto.EnterWorldAreaRsp)
 	enterWorldAreaRsp.AreaType = req.AreaType
@@ -557,15 +580,19 @@ func (g *GameManager) EnterWorldAreaReq(userId uint32, headMsg *api.PacketHead, 
 }
 
 func (g *GameManager) PostEnterSceneReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user post enter scene, user id: %v", userId)
-	player := g.userManager.GetTargetUser(userId)
+	logger.LOG.Debug("user post enter scene, user id: %v", userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
 	postEnterSceneRsp := new(proto.PostEnterSceneRsp)
 	postEnterSceneRsp.EnterSceneToken = player.EnterSceneToken
 	g.SendMsg(api.ApiPostEnterSceneRsp, userId, nil, postEnterSceneRsp)
 }
 
 func (g *GameManager) TowerAllDataReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user get tower all data, user id: %v", userId)
+	logger.LOG.Debug("user get tower all data, user id: %v", userId)
 	towerAllDataRsp := new(proto.TowerAllDataRsp)
 	towerAllDataRsp.TowerScheduleId = 29
 	towerAllDataRsp.TowerFloorRecordList = []*proto.TowerFloorRecord{{FloorId: 1001}}
@@ -581,7 +608,7 @@ func (g *GameManager) TowerAllDataReq(userId uint32, headMsg *api.PacketHead, pa
 }
 
 func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user get scene trans to point, user id: %v", userId)
+	logger.LOG.Debug("user get scene trans to point, user id: %v", userId)
 	req := payloadMsg.(*proto.SceneTransToPointReq)
 
 	transPointId := strconv.Itoa(int(req.SceneId)) + "_" + strconv.Itoa(int(req.PointId))
@@ -596,7 +623,11 @@ func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *api.PacketHea
 	}
 
 	// 传送玩家
-	player := g.userManager.GetTargetUser(userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
 	oldSceneId := player.SceneId
 	newSceneId := req.SceneId
 	world := g.worldManager.GetWorldByID(player.WorldId)
@@ -610,7 +641,7 @@ func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *api.PacketHea
 	player.Pos.Z = transPointConfig.PointData.TranPos.Z
 	player.SceneId = newSceneId
 	logger.LOG.Info("player goto scene: %v, pos x: %v, y: %v, z: %v", newSceneId, player.Pos.X, player.Pos.Y, player.Pos.Z)
-	g.userManager.UpdateUser(player)
+	//g.userManager.UpdateUser(player)
 
 	// PacketSceneEntityDisappearNotify
 	sceneEntityDisappearNotify := new(proto.SceneEntityDisappearNotify)
@@ -641,7 +672,7 @@ func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *api.PacketHea
 	playerEnterSceneNotify.WorldType = 1
 	playerEnterSceneNotify.SceneTransaction = strconv.FormatInt(int64(newSceneId), 10) + "-" + strconv.FormatInt(int64(player.PlayerID), 10) + "-" + strconv.FormatInt(time.Now().Unix(), 10) + "-" + "18402"
 	g.SendMsg(api.ApiPlayerEnterSceneNotify, userId, nil, playerEnterSceneNotify)
-	g.userManager.UpdateUser(player)
+	//g.userManager.UpdateUser(player)
 
 	// PacketSceneTransToPointRsp
 	sceneTransToPointRsp := new(proto.SceneTransToPointRsp)
@@ -654,7 +685,11 @@ func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *api.PacketHea
 func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
 	//g.log.Info("user combat invocations, user id: %v", userId)
 	req := payloadMsg.(*proto.CombatInvocationsNotify)
-	player := g.userManager.GetTargetUser(userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, user id: %v", userId)
+		return
+	}
 	for _, v := range req.InvokeList {
 		switch v.ArgumentType {
 		case proto.CombatTypeArgument_COMBAT_TYPE_ARGUMENT_ENTITY_MOVE:
@@ -684,7 +719,7 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *api.Packet
 }
 
 func (g *GameManager) MarkMapReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user mark map, user id: %v", userId)
+	logger.LOG.Debug("user mark map, user id: %v", userId)
 	req := payloadMsg.(*proto.MarkMapReq)
 	operation := req.Op
 	if operation == proto.MarkMapReq_OPERATION_ADD {
@@ -697,7 +732,11 @@ func (g *GameManager) MarkMapReq(userId uint32, headMsg *api.PacketHead, payload
 			}
 
 			// 传送玩家
-			player := g.userManager.GetTargetUser(userId)
+			player := g.userManager.GetOnlineUser(userId)
+			if player == nil {
+				logger.LOG.Error("player is nil, userId: %v", userId)
+				return
+			}
 			oldSceneId := player.SceneId
 			newSceneId := req.Mark.SceneId
 			world := g.worldManager.GetWorldByID(player.WorldId)
@@ -714,14 +753,14 @@ func (g *GameManager) MarkMapReq(userId uint32, headMsg *api.PacketHead, payload
 			player.Pos.Z = z
 			player.SceneId = newSceneId
 			logger.LOG.Info("player goto scene: %v, pos x: %v, y: %v, z: %v", newSceneId, x, y, z)
-			g.userManager.UpdateUser(player)
+			//g.userManager.UpdateUser(player)
 
 			// PacketSceneEntityDisappearNotify
 			sceneEntityDisappearNotify := new(proto.SceneEntityDisappearNotify)
 			sceneEntityDisappearNotify.EntityList = []uint32{player.TeamConfig.GetActiveAvatarEntity().AvatarEntityId}
 			sceneEntityDisappearNotify.DisappearType = proto.VisionType_VISION_TYPE_REMOVE
 			g.SendMsg(api.ApiSceneEntityDisappearNotify, userId, nil, sceneEntityDisappearNotify)
-			g.userManager.UpdateUser(player)
+			//g.userManager.UpdateUser(player)
 
 			// PacketPlayerEnterSceneNotify
 			playerPropertyConst := constant.GetPlayerPropertyConst()
@@ -746,16 +785,20 @@ func (g *GameManager) MarkMapReq(userId uint32, headMsg *api.PacketHead, payload
 			playerEnterSceneNotify.WorldType = 1
 			playerEnterSceneNotify.SceneTransaction = strconv.FormatInt(int64(newSceneId), 10) + "-" + strconv.FormatInt(int64(player.PlayerID), 10) + "-" + strconv.FormatInt(time.Now().Unix(), 10) + "-" + "18402"
 			g.SendMsg(api.ApiPlayerEnterSceneNotify, userId, nil, playerEnterSceneNotify)
-			g.userManager.UpdateUser(player)
+			//g.userManager.UpdateUser(player)
 		}
 	}
 }
 
 func (g *GameManager) ChangeAvatarReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user change avatar, user id: %v", userId)
+	logger.LOG.Debug("user change avatar, user id: %v", userId)
 	req := payloadMsg.(*proto.ChangeAvatarReq)
 	targetAvatarGuid := req.Guid
-	player := g.userManager.GetTargetUser(userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
 	oldAvatarId := player.TeamConfig.GetActiveAvatarId()
 	oldAvatarEntity := player.TeamConfig.GetActiveAvatarEntity()
 	oldAvatar := player.AvatarMap[oldAvatarId]
@@ -802,9 +845,13 @@ func (g *GameManager) ChangeAvatarReq(userId uint32, headMsg *api.PacketHead, pa
 }
 
 func (g *GameManager) SetUpAvatarTeamReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user set up avatar team, user id: %v", userId)
+	logger.LOG.Debug("user set up avatar team, user id: %v", userId)
 	req := payloadMsg.(*proto.SetUpAvatarTeamReq)
-	player := g.userManager.GetTargetUser(userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
 	teamId := req.TeamId
 	avatarGuidList := req.AvatarTeamGuidList
 	world := g.worldManager.GetWorldByID(player.WorldId)
@@ -881,10 +928,14 @@ func (g *GameManager) SetUpAvatarTeamReq(userId uint32, headMsg *api.PacketHead,
 }
 
 func (g *GameManager) ChooseCurAvatarTeamReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	logger.LOG.Info("user switch team, user id: %v", userId)
+	logger.LOG.Debug("user switch team, user id: %v", userId)
 	req := payloadMsg.(*proto.ChooseCurAvatarTeamReq)
 	teamId := req.TeamId
-	player := g.userManager.GetTargetUser(userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
 	world := g.worldManager.GetWorldByID(player.WorldId)
 	if world.multiplayer {
 		return

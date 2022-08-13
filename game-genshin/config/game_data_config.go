@@ -11,6 +11,7 @@ var CONF *GameDataConfig = nil
 type GameDataConfig struct {
 	binPrefix      string
 	excelBinPrefix string
+	csvPrefix      string
 	GameDepot      *GameDepot
 	// 配置表
 	// BinOutput
@@ -31,12 +32,15 @@ type GameDataConfig struct {
 	// 角色技能
 	AvatarSkillDataMap      map[int32]*AvatarSkillData
 	AvatarSkillDepotDataMap map[int32]*AvatarSkillDepotData
+	// 掉落组配置表
+	DropGroupDataMap map[int32]*DropGroupData
 }
 
 func InitGameDataConfig() {
 	CONF = new(GameDataConfig)
 	CONF.binPrefix = ""
 	CONF.excelBinPrefix = ""
+	CONF.csvPrefix = ""
 	CONF.loadAll()
 }
 
@@ -56,6 +60,8 @@ func (g *GameDataConfig) load() {
 	// 角色技能
 	g.loadAvatarSkillData()
 	g.loadAvatarSkillDepotData()
+	// 掉落组配置表
+	g.loadDropGroupData()
 }
 
 func (g *GameDataConfig) loadAll() {
@@ -67,6 +73,7 @@ func (g *GameDataConfig) loadAll() {
 	}
 	g.binPrefix = resourcePath + "/BinOutput"
 	g.excelBinPrefix = resourcePath + "/ExcelBinOutput"
+	g.csvPrefix = resourcePath + "/Csv"
 	dirInfo, err = os.Stat(g.binPrefix)
 	if err != nil || !dirInfo.IsDir() {
 		logger.LOG.Error("open game data bin output config dir error: %v", err)
@@ -77,7 +84,13 @@ func (g *GameDataConfig) loadAll() {
 		logger.LOG.Error("open game data excel bin output config dir error: %v", err)
 		return
 	}
+	dirInfo, err = os.Stat(g.csvPrefix)
+	if err != nil || !dirInfo.IsDir() {
+		logger.LOG.Error("open game data csv config dir error: %v", err)
+		return
+	}
 	g.binPrefix += "/"
 	g.excelBinPrefix += "/"
+	g.csvPrefix += "/"
 	g.load()
 }

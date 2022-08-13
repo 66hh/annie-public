@@ -59,7 +59,11 @@ func (c *Controller) registerRouter() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	engine := gin.Default()
+	// gacha
+	engine.GET("/gm/gacha", c.gacha)
+	engine.GET("/gm/gacha/details", c.gachaDetails)
 	engine.Use(c.authorize())
+	// gate
 	engine.POST("/gm/gate/state", c.changeGateState)
 	engine.POST("/gm/gate/kick", c.kickPlayer)
 	engine.GET("/gm/gate/online", c.getOnlineUser)
