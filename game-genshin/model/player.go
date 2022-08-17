@@ -24,7 +24,7 @@ type Player struct {
 	CostumeList           []uint32              `bson:"costumeList"`  // 角色衣装列表
 	SceneId               uint32                `bson:"sceneId"`      // 场景
 	Pos                   *Vector               `bson:"pos"`          // 玩家坐标
-	Rotation              *Vector               `bson:"rotation"`     // 玩家朝向
+	Rot                   *Vector               `bson:"rot"`          // 玩家朝向
 	ItemMap               map[uint32]*Item      `bson:"itemMap"`      // 玩家统一大背包仓库
 	WeaponMap             map[uint64]*Weapon    `bson:"weaponMap"`    // 玩家武器背包
 	ReliquaryMap          map[uint64]*Reliquary `bson:"reliquaryMap"` // 玩家圣遗物背包
@@ -36,6 +36,8 @@ type Player struct {
 	WorldId               uint32                `bson:"-"`            // 所在的世界id
 	PeerId                uint32                `bson:"-"`
 	GameObjectGuidCounter uint64                `bson:"-"` // 游戏对象guid计数器
+	ClientTime            uint32                `bson:"-"` // 玩家客户端的本地时钟
+	ClientRTT             uint32                `json:"-"` // 玩家客户端往返时延
 }
 
 func (p *Player) GetNextGameObjectGuid() uint64 {

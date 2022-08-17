@@ -4,6 +4,7 @@ const (
 	NormalMsg = iota
 	UserLogin
 	UserOffline
+	ClientRttNotify
 )
 
 type NetMsg struct {

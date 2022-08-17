@@ -37,7 +37,8 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 	player.Properties[playerPropertyConst.PROP_PLAYER_MP_SETTING_TYPE] = uint32(player.MpSetting.Number())
 	player.Properties[playerPropertyConst.PROP_IS_MP_MODE_AVAILABLE] = 1
 	//g.userManager.UpdateUser(player)
-	player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId)
+	scene := world.GetSceneById(player.SceneId)
+	player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId, scene.CreateEntity, player)
 
 	// PacketPlayerDataNotify
 	playerDataNotify := new(proto.PlayerDataNotify)

@@ -40,10 +40,14 @@ func (p *ProtoEnDecode) Start() {
 	}
 }
 
+type ProtoMessage struct {
+	apiId   uint16
+	message any
+}
+
 func (p *ProtoEnDecode) protoDecode() {
 	for {
 		kcpMsg := <-p.kcpMsgOutput
-		//p.log.Debug("[recv] kcp msg, convId: %v, apiId: %v, headMsg: %v, payloadMsg: %v", kcpMsg.ConvId, kcpMsg.ApiId, kcpMsg.HeadData, kcpMsg.ProtoData)
 		protoMsg := new(ProtoMsg)
 		protoMsg.ConvId = kcpMsg.ConvId
 		protoMsg.ApiId = kcpMsg.ApiId
@@ -62,21 +66,20 @@ func (p *ProtoEnDecode) protoDecode() {
 		// payload msg
 		isBypass := p.bypassApiMap[kcpMsg.ApiId]
 		if !isBypass && kcpMsg.ProtoData != nil && len(kcpMsg.ProtoData) != 0 {
-			messageList := make(map[uint16]any)
-			p.protoDecodePayloadCore(kcpMsg.ApiId, kcpMsg.ProtoData, &messageList)
-			if len(messageList) == 0 {
+			protoMessageList := make([]*ProtoMessage, 0)
+			p.protoDecodePayloadCore(kcpMsg.ApiId, kcpMsg.ProtoData, &protoMessageList)
+			if len(protoMessageList) == 0 {
 				logger.LOG.Error("decode proto object is nil")
 				continue
 			}
 			if kcpMsg.ApiId == api.ApiUnionCmdNotify {
-				for apiId, message := range messageList {
+				for _, protoMessage := range protoMessageList {
 					msg := new(ProtoMsg)
 					msg.ConvId = kcpMsg.ConvId
-					msg.ApiId = apiId
-					msg.PayloadMessage = message
-					logger.LOG.Debug("[recv] union proto msg, convId: %v, apiId: %v", msg.ConvId, msg.ApiId)
-					//p.log.Debug("[recv] union proto msg, convId: %v, apiId: %v, payloadMsg: %v", msg.ConvId, msg.ApiId, msg.PayloadMessage)
-					if apiId == api.ApiUnionCmdNotify {
+					msg.ApiId = protoMessage.apiId
+					msg.PayloadMessage = protoMessage.message
+					//logger.LOG.Debug("[recv] union proto msg, convId: %v, apiId: %v", msg.ConvId, msg.ApiId)
+					if protoMessage.apiId == api.ApiUnionCmdNotify {
 						// 聚合消息自身不再往后发送
 						continue
 					}
@@ -85,18 +88,17 @@ func (p *ProtoEnDecode) protoDecode() {
 				// 聚合消息自身不再往后发送
 				continue
 			} else {
-				protoMsg.PayloadMessage = messageList[kcpMsg.ApiId]
+				protoMsg.PayloadMessage = protoMessageList[0].message
 			}
 		} else {
 			protoMsg.PayloadMessage = nil
 		}
-		logger.LOG.Debug("[recv] proto msg, convId: %v, apiId: %v, headMsg: %v", protoMsg.ConvId, protoMsg.ApiId, protoMsg.HeadMessage)
-		//p.log.Debug("[recv] proto msg, convId: %v, apiId: %v, headMsg: %v, payloadMsg: %v", protoMsg.ConvId, protoMsg.ApiId, protoMsg.HeadMessage, protoMsg.PayloadMessage)
+		//logger.LOG.Debug("[recv] proto msg, convId: %v, apiId: %v, headMsg: %v", protoMsg.ConvId, protoMsg.ApiId, protoMsg.HeadMessage)
 		p.protoMsgOutput <- protoMsg
 	}
 }
 
-func (p *ProtoEnDecode) protoDecodePayloadCore(apiId uint16, protoData []byte, messageList *map[uint16]any) {
+func (p *ProtoEnDecode) protoDecodePayloadCore(apiId uint16, protoData []byte, protoMessageList *[]*ProtoMessage) {
 	protoObj := p.decodePayloadToProto(apiId, protoData)
 	if protoObj == nil {
 		logger.LOG.Error("decode proto object is nil")
@@ -110,17 +112,19 @@ func (p *ProtoEnDecode) protoDecodePayloadCore(apiId uint16, protoData []byte, m
 			return
 		}
 		for _, cmd := range unionCmdNotify.GetCmdList() {
-			p.protoDecodePayloadCore(uint16(cmd.MessageId), cmd.Body, messageList)
+			p.protoDecodePayloadCore(uint16(cmd.MessageId), cmd.Body, protoMessageList)
 		}
 	}
-	(*messageList)[apiId] = protoObj
+	*protoMessageList = append(*protoMessageList, &ProtoMessage{
+		apiId:   apiId,
+		message: protoObj,
+	})
 }
 
 func (p *ProtoEnDecode) protoEncode() {
 	for {
 		protoMsg := <-p.protoMsgInput
-		logger.LOG.Debug("[send] proto msg, convId: %v, apiId: %v, headMsg: %v", protoMsg.ConvId, protoMsg.ApiId, protoMsg.HeadMessage)
-		//p.log.Debug("[send] proto msg, convId: %v, apiId: %v, headMsg: %v, payloadMsg: %v", protoMsg.ConvId, protoMsg.ApiId, protoMsg.HeadMessage, protoMsg.PayloadMessage)
+		//logger.LOG.Debug("[send] proto msg, convId: %v, apiId: %v, headMsg: %v", protoMsg.ConvId, protoMsg.ApiId, protoMsg.HeadMessage)
 		kcpMsg := new(KcpMsg)
 		kcpMsg.ConvId = protoMsg.ConvId
 		kcpMsg.ApiId = protoMsg.ApiId
@@ -150,7 +154,6 @@ func (p *ProtoEnDecode) protoEncode() {
 		} else {
 			kcpMsg.ProtoData = nil
 		}
-		//p.log.Debug("[send] kcp msg, convId: %v, apiId: %v, headMsg: %v, payloadMsg: %v", kcpMsg.ConvId, kcpMsg.ApiId, kcpMsg.HeadData, kcpMsg.ProtoData)
 		p.kcpMsgInput <- kcpMsg
 	}
 }

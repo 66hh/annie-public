@@ -72,4 +72,13 @@ func init() {
 	gob.Register(&DoGachaReq{})
 	gob.Register(&DoGachaRsp{})
 	gob.Register(&Item_Furniture{})
+	gob.Register(&SceneEntityInfo_Monster{})
+	gob.Register(&EntityFightPropUpdateNotify{})
+	gob.Register(&QueryPathReq{})
+	gob.Register(&QueryPathRsp{})
+	gob.Register(&PingReq{})
+	gob.Register(&PingRsp{})
+	gob.Register(&AbilityInvocationsNotify{})
+	gob.Register(&ClientAbilityInitFinishNotify{})
+	gob.Register(&EntityAiSyncNotify{})
 }

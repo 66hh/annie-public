@@ -11,7 +11,6 @@ import (
 	gdc "game-genshin/config"
 	"game-genshin/constant"
 	"game-genshin/model"
-	pb "google.golang.org/protobuf/proto"
 	"strconv"
 	"time"
 )
@@ -93,7 +92,7 @@ func (g *GameManager) PlayerReg(exist bool, req *proto.SetPlayerBornDataReq, use
 	player.CostumeList = make([]uint32, 0)
 
 	player.Pos = &model.Vector{X: 2747, Y: 194, Z: -1719}
-	player.Rotation = &model.Vector{X: 0, Y: 307, Z: 0}
+	player.Rot = &model.Vector{X: 0, Y: 307, Z: 0}
 
 	player.MpSetting = proto.MpSettingType_MP_SETTING_TYPE_ENTER_AFTER_APPLY
 
@@ -409,7 +408,7 @@ func (g *GameManager) EnterSceneDoneReq(userId uint32, headMsg *api.PacketHead, 
 	// PacketPlayerTimeNotify
 	playerTimeNotify := new(proto.PlayerTimeNotify)
 	playerTimeNotify.IsPaused = false
-	playerTimeNotify.PlayerTime = uint64(0) // 客户端ping包的时间
+	playerTimeNotify.PlayerTime = uint64(player.ClientTime)
 	playerTimeNotify.ServerTime = uint64(time.Now().UnixMilli())
 	g.SendMsg(api.ApiPlayerTimeNotify, userId, nil, playerTimeNotify)
 
@@ -435,9 +434,9 @@ func (g *GameManager) EnterSceneDoneReq(userId uint32, headMsg *api.PacketHead, 
 				Z: float32(player.Pos.Z),
 			},
 			Rot: &proto.Vector{
-				X: float32(player.Rotation.X),
-				Y: float32(player.Rotation.Y),
-				Z: float32(player.Rotation.Z),
+				X: float32(player.Rot.X),
+				Y: float32(player.Rot.Y),
+				Z: float32(player.Rot.Z),
 			},
 			Speed: &proto.Vector{},
 		},
@@ -538,9 +537,9 @@ func (g *GameManager) EnterSceneDoneReq(userId uint32, headMsg *api.PacketHead, 
 				Z: float32(player.Pos.Z),
 			},
 			Rot: &proto.Vector{
-				X: float32(player.Rotation.X),
-				Y: float32(player.Rotation.Y),
-				Z: float32(player.Rotation.Z),
+				X: float32(player.Rot.X),
+				Y: float32(player.Rot.Y),
+				Z: float32(player.Rot.Z),
 			},
 		},
 	}}
@@ -557,9 +556,9 @@ func (g *GameManager) EnterSceneDoneReq(userId uint32, headMsg *api.PacketHead, 
 			Z: float32(player.Pos.Z),
 		},
 		Rot: &proto.Vector{
-			X: float32(player.Rotation.X),
-			Y: float32(player.Rotation.Y),
-			Z: float32(player.Rotation.Z),
+			X: float32(player.Rot.X),
+			Y: float32(player.Rot.Y),
+			Z: float32(player.Rot.Z),
 		},
 	}}
 	g.SendMsg(api.ApiScenePlayerLocationNotify, userId, nil, scenePlayerLocationNotify)
@@ -635,7 +634,8 @@ func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *api.PacketHea
 	oldScene.RemovePlayer(player)
 	newScene := world.GetSceneById(newSceneId)
 	newScene.AddPlayer(player)
-	player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId)
+	scene := world.GetSceneById(player.SceneId)
+	player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId, scene.CreateEntity, player)
 	player.Pos.X = transPointConfig.PointData.TranPos.X
 	player.Pos.Y = transPointConfig.PointData.TranPos.Y
 	player.Pos.Z = transPointConfig.PointData.TranPos.Z
@@ -682,42 +682,6 @@ func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *api.PacketHea
 	g.SendMsg(api.ApiSceneTransToPointRsp, userId, nil, sceneTransToPointRsp)
 }
 
-func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	//g.log.Info("user combat invocations, user id: %v", userId)
-	req := payloadMsg.(*proto.CombatInvocationsNotify)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, user id: %v", userId)
-		return
-	}
-	for _, v := range req.InvokeList {
-		switch v.ArgumentType {
-		case proto.CombatTypeArgument_COMBAT_TYPE_ARGUMENT_ENTITY_MOVE:
-			{
-				entityMoveInfo := new(proto.EntityMoveInfo)
-				err := pb.Unmarshal(v.CombatData, entityMoveInfo)
-				if err != nil {
-					logger.LOG.Error("parse combat invocations entity move info error: %v", err)
-					continue
-				}
-				if entityMoveInfo.EntityId == player.TeamConfig.GetActiveAvatarEntity().AvatarEntityId {
-					// 玩家在移动
-					if entityMoveInfo.MotionInfo.Pos == nil {
-						logger.LOG.Error("parse motion info pos is nil, entityMoveInfo: %v", entityMoveInfo)
-						continue
-					}
-					player.Pos.X = float64(entityMoveInfo.MotionInfo.Pos.X)
-					player.Pos.Y = float64(entityMoveInfo.MotionInfo.Pos.Y)
-					player.Pos.Z = float64(entityMoveInfo.MotionInfo.Pos.Z)
-					player.Rotation.X = float64(entityMoveInfo.MotionInfo.Rot.X)
-					player.Rotation.Y = float64(entityMoveInfo.MotionInfo.Rot.Y)
-					player.Rotation.Z = float64(entityMoveInfo.MotionInfo.Rot.Z)
-				}
-			}
-		}
-	}
-}
-
 func (g *GameManager) MarkMapReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
 	logger.LOG.Debug("user mark map, user id: %v", userId)
 	req := payloadMsg.(*proto.MarkMapReq)
@@ -744,7 +708,8 @@ func (g *GameManager) MarkMapReq(userId uint32, headMsg *api.PacketHead, payload
 			oldScene.RemovePlayer(player)
 			newScene := world.GetSceneById(newSceneId)
 			newScene.AddPlayer(player)
-			player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId)
+			scene := world.GetSceneById(player.SceneId)
+			player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId, scene.CreateEntity, player)
 			x := float64(req.Mark.Pos.X)
 			y := float64(posYInt)
 			z := float64(req.Mark.Pos.Z)
@@ -892,7 +857,8 @@ func (g *GameManager) SetUpAvatarTeamReq(userId uint32, headMsg *api.PacketHead,
 
 		if selfTeam {
 			player.TeamConfig.CurrAvatarIndex = 0
-			player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId)
+			scene := world.GetSceneById(player.SceneId)
+			player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId, scene.CreateEntity, player)
 			// TODO 还有一大堆没写 SceneTeamUpdateNotify
 			// PacketSceneTeamUpdateNotify
 			sceneTeamUpdateNotify := g.PacketSceneTeamUpdateNotify(world)
@@ -946,7 +912,8 @@ func (g *GameManager) ChooseCurAvatarTeamReq(userId uint32, headMsg *api.PacketH
 	}
 	player.TeamConfig.CurrTeamIndex = uint8(teamId) - 1
 	player.TeamConfig.CurrAvatarIndex = 0
-	player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId)
+	scene := world.GetSceneById(player.SceneId)
+	player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId, scene.CreateEntity, player)
 
 	// TODO 还有一大堆没写 SceneTeamUpdateNotify
 	// PacketSceneTeamUpdateNotify
@@ -978,9 +945,9 @@ func (g *GameManager) PacketAvatarSceneEntityInfo(player *model.Player, avatarId
 				Z: float32(player.Pos.Z),
 			},
 			Rot: &proto.Vector{
-				X: float32(player.Rotation.X),
-				Y: float32(player.Rotation.Y),
-				Z: float32(player.Rotation.Z),
+				X: float32(player.Rot.X),
+				Y: float32(player.Rot.Y),
+				Z: float32(player.Rot.Z),
 			},
 			Speed: &proto.Vector{},
 		},
@@ -1103,9 +1070,9 @@ func (g *GameManager) PacketSceneTeamUpdateNotify(world *World) *proto.SceneTeam
 							Z: float32(worldPlayer.Pos.Z),
 						},
 						Rot: &proto.Vector{
-							X: float32(worldPlayer.Rotation.X),
-							Y: float32(worldPlayer.Rotation.Y),
-							Z: float32(worldPlayer.Rotation.Z),
+							X: float32(worldPlayer.Rot.X),
+							Y: float32(worldPlayer.Rot.Y),
+							Z: float32(worldPlayer.Rot.Z),
 						},
 						Speed: &proto.Vector{},
 					},
@@ -1261,4 +1228,62 @@ func (g *GameManager) PacketSceneTeamUpdateNotify(world *World) *proto.SceneTeam
 		}
 	}
 	return sceneTeamUpdateNotify
+}
+
+func (g *GameManager) QueryPathReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+	//logger.LOG.Debug("user query path, user id: %v", userId)
+	req := payloadMsg.(*proto.QueryPathReq)
+	queryPathRsp := new(proto.QueryPathRsp)
+	queryPathRsp.Corners = []*proto.Vector{req.DestinationPos[0]}
+	queryPathRsp.QueryId = req.QueryId
+	queryPathRsp.QueryStatus = proto.QueryPathRsp_PATH_STATUS_TYPE_SUCC
+	g.SendMsg(api.ApiQueryPathRsp, userId, nil, queryPathRsp)
+}
+
+func (g *GameManager) PingReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+	logger.LOG.Debug("user ping, user id: %v", userId)
+	pingReq := payloadMsg.(*proto.PingReq)
+	logger.LOG.Debug("ping req data: %v", pingReq.String())
+	player := g.userManager.GetOnlineUser(userId)
+	if player != nil {
+		player.ClientTime = pingReq.ClientTime
+		player.ClientRTT = 10
+	}
+	pingRsp := new(proto.PingRsp)
+	pingRsp.ClientTime = pingReq.ClientTime
+	g.SendMsg(api.ApiPingRsp, userId, g.getHeadMsg(headMsg.ClientSequenceId), pingRsp)
+}
+
+func (g *GameManager) ClientRttNotify(userId uint32, payloadMsg any) {
+	rtt := payloadMsg.(int32)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
+	logger.LOG.Debug("user rtt notify, user id: %v, rtt: %v", userId, rtt)
+	player.ClientRTT = uint32(rtt)
+}
+
+func (g *GameManager) EntityAiSyncNotify(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+	logger.LOG.Debug("user entity ai sync, user id: %v", userId)
+	if payloadMsg == nil {
+		return
+	}
+	req := payloadMsg.(*proto.EntityAiSyncNotify)
+	if len(req.LocalAvatarAlertedMonsterList) == 0 {
+		return
+	}
+
+	// PacketEntityAiSyncNotify
+	entityAiSyncNotify := new(proto.EntityAiSyncNotify)
+	entityAiSyncNotify.InfoList = make([]*proto.AiSyncInfo, 0)
+	for _, monsterId := range req.LocalAvatarAlertedMonsterList {
+		entityAiSyncNotify.InfoList = append(entityAiSyncNotify.InfoList, &proto.AiSyncInfo{
+			EntityId:        monsterId,
+			HasPathToTarget: true,
+			IsSelfKilling:   false,
+		})
+	}
+	g.SendMsg(api.ApiEntityAiSyncNotify, userId, nil, entityAiSyncNotify)
 }

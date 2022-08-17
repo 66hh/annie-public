@@ -31,10 +31,10 @@ func main() {
 
 	kcpEventInput := make(chan *net.KcpEvent)
 	kcpEventOutput := make(chan *net.KcpEvent)
-	kcpMsgInput := make(chan *net.KcpMsg, 1000)
-	kcpMsgOutput := make(chan *net.KcpMsg, 1000)
-	protoMsgInput := make(chan *net.ProtoMsg, 1000)
-	protoMsgOutput := make(chan *net.ProtoMsg, 1000)
+	kcpMsgInput := make(chan *net.KcpMsg, 10000)
+	kcpMsgOutput := make(chan *net.KcpMsg, 10000)
+	protoMsgInput := make(chan *net.ProtoMsg, 10000)
+	protoMsgOutput := make(chan *net.ProtoMsg, 10000)
 
 	connectManager := net.NewKcpConnectManager(kcpEventInput, kcpEventOutput, kcpMsgInput, kcpMsgOutput)
 	protoEnDecode := net.NewProtoEnDecode(kcpMsgInput, kcpMsgOutput, protoMsgInput, protoMsgOutput)

@@ -71,7 +71,7 @@ func (u *UserManager) CheckUserExistOnReg(userId uint32, req *proto.SetPlayerBor
 	}
 }
 
-func (u *UserManager) LoadOfflineUserSync(userId uint32) *model.Player {
+func (u *UserManager) LoadTempOfflineUserSync(userId uint32) *model.Player {
 	u.playerMapLock.RLock()
 	player, exist := u.playerMap[userId]
 	u.playerMapLock.RUnlock()
@@ -134,11 +134,12 @@ type PlayerLoginInfo struct {
 	Player *model.Player
 }
 
-func (u *UserManager) OnlineUser(userId uint32) (player *model.Player, asyncWait bool) {
+func (u *UserManager) OnlineUser(userId uint32) (*model.Player, bool) {
 	u.playerMapLock.RLock()
 	player, exist := u.playerMap[userId]
 	u.playerMapLock.RUnlock()
 	if exist {
+		u.ChangeUserDbState(player, model.DbNormal)
 		return player, false
 	} else {
 		go func() {
@@ -264,7 +265,7 @@ func (u *UserManager) StartAutoSaveUser() {
 			u.playerMap = playerMapTemp
 			u.playerMapLock.Unlock()
 			logger.LOG.Info("auto save user finish")
-			ticker = time.NewTicker(time.Minute * 1)
+			ticker = time.NewTicker(time.Minute * 5)
 			<-ticker.C
 			ticker.Stop()
 		}

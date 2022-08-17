@@ -111,41 +111,41 @@ func (g *GameManager) GetGachaInfoReq(userId uint32, headMsg *api.PacketHead, pa
 			WishMaxProgress:     0,
 			IsNewWish:           false,
 		},
-		// 阿莫斯之弓&风鹰剑
+		// 阿莫斯之弓&天空之傲
 		{
-			GachaType:              426,
-			ScheduleId:             1103,
+			GachaType:              431,
+			ScheduleId:             1143,
 			BeginTime:              0,
 			EndTime:                2051193600,
 			GachaSortId:            9997,
-			GachaPrefabPath:        "GachaShowPanel_A020",
-			GachaPreviewPrefabPath: "UI_Tab_GachaShowPanel_A020",
-			TitleTextmap:           "UI_GACHA_SHOW_PANEL_A020_TITLE",
+			GachaPrefabPath:        "GachaShowPanel_A030",
+			GachaPreviewPrefabPath: "UI_Tab_GachaShowPanel_A030",
+			TitleTextmap:           "UI_GACHA_SHOW_PANEL_A030_TITLE",
 			LeftGachaTimes:         2147483647,
 			GachaTimesLimit:        2147483647,
 			CostItemId:             223,
 			CostItemNum:            1,
 			TenCostItemId:          223,
 			TenCostItemNum:         10,
-			GachaRecordUrl:         serverAddr + "/gm/gacha?gachaType=426&jwt=" + jwtStr,
-			GachaRecordUrlOversea:  serverAddr + "/gm/gacha?gachaType=426&jwt=" + jwtStr,
-			GachaProbUrl:           serverAddr + "/gm/gacha/details?scheduleId=1103&jwt=" + jwtStr,
-			GachaProbUrlOversea:    serverAddr + "/gm/gacha/details?scheduleId=1103&jwt=" + jwtStr,
+			GachaRecordUrl:         serverAddr + "/gm/gacha?gachaType=431&jwt=" + jwtStr,
+			GachaRecordUrlOversea:  serverAddr + "/gm/gacha?gachaType=431&jwt=" + jwtStr,
+			GachaProbUrl:           serverAddr + "/gm/gacha/details?scheduleId=1143&jwt=" + jwtStr,
+			GachaProbUrlOversea:    serverAddr + "/gm/gacha/details?scheduleId=1143&jwt=" + jwtStr,
 			GachaUpInfoList: []*proto.GachaUpInfo{
 				{
 					ItemParentType: 1,
-					ItemIdList:     []uint32{15502, 11501},
+					ItemIdList:     []uint32{15502, 12501},
 				},
 				{
 					ItemParentType: 2,
-					ItemIdList:     []uint32{11402, 12402, 15402, 11402, 13407},
+					ItemIdList:     []uint32{11403, 12402, 13401, 14409, 15401},
 				},
 			},
-			DisplayUp_4ItemList: []uint32{11402},
-			DisplayUp_5ItemList: []uint32{15502, 11501},
+			DisplayUp_4ItemList: []uint32{11403},
+			DisplayUp_5ItemList: []uint32{15502, 12501},
 			WishItemId:          0,
 			WishProgress:        0,
-			WishMaxProgress:     2,
+			WishMaxProgress:     0,
 			IsNewWish:           false,
 		},
 		// 常驻
@@ -200,32 +200,26 @@ func (g *GameManager) DoGachaReq(userId uint32, headMsg *api.PacketHead, payload
 	gachaScheduleId := req.GachaScheduleId
 	gachaTimes := req.GachaTimes
 
-	poolIndex := 0
 	gachaType := uint32(0)
 	costItemId := uint32(0)
 	switch gachaScheduleId {
 	case 823:
 		// 温迪
-		poolIndex = 1
 		gachaType = 300
 		costItemId = 223
 	case 833:
 		// 可莉
-		poolIndex = 2
 		gachaType = 400
 		costItemId = 223
-	case 1103:
-		// 阿莫斯之弓&风鹰剑
-		poolIndex = 3
-		gachaType = 426
+	case 1143:
+		// 阿莫斯之弓&天空之傲
+		gachaType = 431
 		costItemId = 223
 	case 813:
 		// 常驻
-		poolIndex = 4
 		gachaType = 201
 		costItemId = 224
 	}
-	_ = poolIndex
 
 	// PacketDoGachaRsp
 	doGachaRsp := new(proto.DoGachaRsp)
@@ -250,37 +244,26 @@ func (g *GameManager) DoGachaReq(userId uint32, headMsg *api.PacketHead, payload
 
 	doGachaRsp.GachaItemList = make([]*proto.GachaItem, 0)
 	for i := uint32(0); i < gachaTimes; i++ {
-		//awardItemId := uint32(0)
-		//allWeaponDataConfig := g.GetAllAvatarDataConfig()
-		//for k, v := range allWeaponDataConfig {
-		//	if v.RankLevel < 5 {
-		//		delete(allWeaponDataConfig, k)
-		//	}
-		//}
-		//for k, v := range allWeaponDataConfig {
-		//	if v.QualityType == "QUALITY_PURPLE" {
-		//		delete(allWeaponDataConfig, k)
-		//	} else if v.QualityType == "QUALITY_ORANGE" {
-		//	}
-		//}
-		//rn := random.GetRandomInt32(0, int32(len(allWeaponDataConfig)-1))
-		//index := int32(0)
-		//for itemId, itemData := range allWeaponDataConfig {
-		//	if rn == index {
-		//		logger.LOG.Debug("itemData: %v", itemData)
-		//		awardItemId = uint32(itemId)
-		//	}
-		//	index++
-		//}
-		//_ = awardItemId
-		//awardItemId %= 1000
-		//awardItemId += 1000
-
-		ok, itemId := g.doGachaOnce(userId, gachaType)
+		var ok bool
+		var itemId uint32
+		if gachaType == 400 {
+			// 可莉
+			ok, itemId = g.doGachaKlee()
+		} else if gachaType == 300 {
+			// 角色UP池
+			ok, itemId = g.doGachaOnce(userId, gachaType, true, false)
+		} else if gachaType == 431 {
+			// 武器UP池
+			ok, itemId = g.doGachaOnce(userId, gachaType, true, true)
+		} else if gachaType == 201 {
+			// 常驻
+			ok, itemId = g.doGachaOnce(userId, gachaType, false, false)
+		} else {
+			ok, itemId = false, 0
+		}
 		if !ok {
 			itemId = 11301
 		}
-
 		gachaItem := new(proto.GachaItem)
 		gachaItem.GachaItem_ = &proto.ItemParam{
 			ItemId: itemId,
@@ -323,15 +306,61 @@ func (g *GameManager) DoGachaReq(userId uint32, headMsg *api.PacketHead, payload
 	g.SendMsg(api.ApiDoGachaRsp, userId, nil, doGachaRsp)
 }
 
-var (
-	OrangeTimesFixThreshold uint32 = 74   // 触发5星概率修正阈值的抽卡次数
-	OrangeTimesFixValue     int32  = 600  // 5星概率修正因子
-	PurpleTimesFixThreshold uint32 = 9    // 触发4星概率修正阈值的抽卡次数
-	PurpleTimesFixValue     int32  = 5100 // 4星概率修正因子
+// 扣1给可莉刷烧烤酱
+func (g *GameManager) doGachaKlee() (bool, uint32) {
+	allAvatarList := make([]uint32, 0)
+	allAvatarDataConfig := g.GetAllAvatarDataConfig()
+	for k, v := range allAvatarDataConfig {
+		if v.QualityType == "QUALITY_ORANGE" || v.QualityType == "QUALITY_PURPLE" {
+			allAvatarList = append(allAvatarList, uint32(k))
+		}
+	}
+	allWeaponList := make([]uint32, 0)
+	allWeaponDataConfig := g.GetAllWeaponDataConfig()
+	for k, v := range allWeaponDataConfig {
+		if v.RankLevel == 5 {
+			allWeaponList = append(allWeaponList, uint32(k))
+		}
+	}
+	allGoodList := make([]uint32, 0)
+	// 全部角色
+	allGoodList = append(allGoodList, allAvatarList...)
+	// 全部5星武器
+	allGoodList = append(allGoodList, allWeaponList...)
+	// 原石 摩拉 粉球 蓝球
+	allGoodList = append(allGoodList, 201, 202, 223, 224)
+	// 苟利国家生死以
+	allGoodList = append(allGoodList, 100081)
+	rn := random.GetRandomInt32(0, int32(len(allGoodList)-1))
+	itemId := allGoodList[rn]
+	if itemId > 10000000 {
+		itemId %= 1000
+		itemId += 1000
+	}
+	return true, itemId
+}
+
+const (
+	Orange = iota
+	Purple
+	Blue
+	Avatar
+	Weapon
+)
+
+const (
+	StandardOrangeTimesFixThreshold uint32 = 74   // 标准池触发5星概率修正阈值的抽卡次数
+	StandardOrangeTimesFixValue     int32  = 600  // 标准池5星概率修正因子
+	StandardPurpleTimesFixThreshold uint32 = 9    // 标准池触发4星概率修正阈值的抽卡次数
+	StandardPurpleTimesFixValue     int32  = 5100 // 标准池4星概率修正因子
+	WeaponOrangeTimesFixThreshold   uint32 = 63   // 武器池触发5星概率修正阈值的抽卡次数
+	WeaponOrangeTimesFixValue       int32  = 700  // 武器池5星概率修正因子
+	WeaponPurpleTimesFixThreshold   uint32 = 8    // 武器池触发4星概率修正阈值的抽卡次数
+	WeaponPurpleTimesFixValue       int32  = 6000 // 武器池4星概率修正因子
 )
 
 // 单抽一次
-func (g *GameManager) doGachaOnce(userId uint32, gachaType uint32) (bool, uint32) {
+func (g *GameManager) doGachaOnce(userId uint32, gachaType uint32, mustGetUpEnable bool, weaponFix bool) (bool, uint32) {
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, userId: %v", userId)
@@ -357,6 +386,21 @@ func (g *GameManager) doGachaOnce(userId uint32, gachaType uint32) (bool, uint32
 	gachaPoolInfo.PurpleTimes++
 
 	// 4星和5星概率修正
+	OrangeTimesFixThreshold := uint32(0)
+	OrangeTimesFixValue := int32(0)
+	PurpleTimesFixThreshold := uint32(0)
+	PurpleTimesFixValue := int32(0)
+	if !weaponFix {
+		OrangeTimesFixThreshold = StandardOrangeTimesFixThreshold
+		OrangeTimesFixValue = StandardOrangeTimesFixValue
+		PurpleTimesFixThreshold = StandardPurpleTimesFixThreshold
+		PurpleTimesFixValue = StandardPurpleTimesFixValue
+	} else {
+		OrangeTimesFixThreshold = WeaponOrangeTimesFixThreshold
+		OrangeTimesFixValue = WeaponOrangeTimesFixValue
+		PurpleTimesFixThreshold = WeaponPurpleTimesFixThreshold
+		PurpleTimesFixValue = WeaponPurpleTimesFixValue
+	}
 	if gachaPoolInfo.OrangeTimes >= OrangeTimesFixThreshold || gachaPoolInfo.PurpleTimes >= PurpleTimesFixThreshold {
 		fixDropGroupDataConfig := new(gdc.DropGroupData)
 		fixDropGroupDataConfig.DropId = dropGroupDataConfig.DropId
@@ -375,7 +419,7 @@ func (g *GameManager) doGachaOnce(userId uint32, gachaType uint32) (bool, uint32
 			fixDrop.Result = drop.Result
 			fixDrop.DropId = drop.DropId
 			fixDrop.IsEnd = drop.IsEnd
-			// 要求配置表的5/4/3星掉落组id规则固定为卡池类型*10+1/2/3
+			// 找到5/4/3星掉落组id 要求配置表的5/4/3星掉落组id规则固定为(卡池类型*10+1/2/3)
 			orangeDropId := int32(gachaType*10 + 1)
 			purpleDropId := int32(gachaType*10 + 2)
 			blueDropId := int32(gachaType*10 + 3)
@@ -400,9 +444,14 @@ func (g *GameManager) doGachaOnce(userId uint32, gachaType uint32) (bool, uint32
 	if !ok {
 		return false, 0
 	}
+	// 分析本次掉落结果的星级和类型
+	itemColor := 0
+	itemType := 0
+	_ = itemType
 	gachaItemId := uint32(drop.Result)
 	if gachaItemId < 2000 {
 		// 抽到角色
+		itemType = Avatar
 		avatarId := (gachaItemId % 1000) + 10000000
 		allAvatarDataConfig := g.GetAllAvatarDataConfig()
 		avatarDataConfig := allAvatarDataConfig[int32(avatarId)]
@@ -410,13 +459,55 @@ func (g *GameManager) doGachaOnce(userId uint32, gachaType uint32) (bool, uint32
 			logger.LOG.Error("avatar data config not found, avatar id: %v", avatarId)
 			return false, 0
 		}
-		// 重置4星和5星保底计数
 		if avatarDataConfig.QualityType == "QUALITY_ORANGE" {
+			itemColor = Orange
 			logger.LOG.Debug("[orange avatar], times: %v, gachaItemId: %v", gachaPoolInfo.OrangeTimes, gachaItemId)
-			gachaPoolInfo.OrangeTimes = 0
-			// 找到UP的5星对应的掉落组id
+			if gachaPoolInfo.OrangeTimes > 90 {
+				logger.LOG.Error("[abnormal orange avatar], times: %v, gachaItemId: %v", gachaPoolInfo.OrangeTimes, gachaItemId)
+			}
+		} else if avatarDataConfig.QualityType == "QUALITY_PURPLE" {
+			itemColor = Purple
+			logger.LOG.Debug("[purple avatar], times: %v, gachaItemId: %v", gachaPoolInfo.PurpleTimes, gachaItemId)
+			if gachaPoolInfo.PurpleTimes > 10 {
+				logger.LOG.Error("[abnormal purple avatar], times: %v, gachaItemId: %v", gachaPoolInfo.PurpleTimes, gachaItemId)
+			}
+		} else {
+			itemColor = Blue
+		}
+	} else {
+		// 抽到武器
+		itemType = Weapon
+		allWeaponDataConfig := g.GetAllWeaponDataConfig()
+		weaponDataConfig := allWeaponDataConfig[int32(gachaItemId)]
+		if weaponDataConfig == nil {
+			logger.LOG.Error("weapon item data config not found, item id: %v", gachaItemId)
+			return false, 0
+		}
+		if weaponDataConfig.RankLevel == 5 {
+			itemColor = Orange
+			logger.LOG.Debug("[orange weapon], times: %v, gachaItemId: %v", gachaPoolInfo.OrangeTimes, gachaItemId)
+			if gachaPoolInfo.OrangeTimes > 90 {
+				logger.LOG.Error("[abnormal orange weapon], times: %v, gachaItemId: %v", gachaPoolInfo.OrangeTimes, gachaItemId)
+			}
+		} else if weaponDataConfig.RankLevel == 4 {
+			itemColor = Purple
+			logger.LOG.Debug("[purple weapon], times: %v, gachaItemId: %v", gachaPoolInfo.PurpleTimes, gachaItemId)
+			if gachaPoolInfo.PurpleTimes > 10 {
+				logger.LOG.Error("[abnormal purple weapon], times: %v, gachaItemId: %v", gachaPoolInfo.PurpleTimes, gachaItemId)
+			}
+		} else {
+			itemColor = Blue
+		}
+	}
+	// 后处理
+	switch itemColor {
+	case Orange:
+		// 重置5星保底计数
+		gachaPoolInfo.OrangeTimes = 0
+		if mustGetUpEnable {
+			// 找到UP的5星对应的掉落组id 要求配置表的UP的5星掉落组id规则固定为(卡池类型*100+12)
 			upOrangeDropId := int32(gachaType*100 + 12)
-			// 触发大保底
+			// 替换本次结果为5星大保底
 			if gachaPoolInfo.MustGetUpOrange {
 				logger.LOG.Debug("trigger must get up orange, user id: %v", userId)
 				upOrangeDropGroupDataConfig := gdc.CONF.DropGroupDataMap[upOrangeDropId]
@@ -432,29 +523,39 @@ func (g *GameManager) doGachaOnce(userId uint32, gachaType uint32) (bool, uint32
 				upOrangeGachaItemId := uint32(upOrangeDrop.Result)
 				return upOrangeOk, upOrangeGachaItemId
 			}
+			// 触发5星大保底
 			if drop.DropId != upOrangeDropId {
 				gachaPoolInfo.MustGetUpOrange = true
 			}
-		} else if avatarDataConfig.QualityType == "QUALITY_PURPLE" {
-			logger.LOG.Debug("[purple avatar], times: %v, gachaItemId: %v", gachaPoolInfo.PurpleTimes, gachaItemId)
-			gachaPoolInfo.PurpleTimes = 0
 		}
-	} else {
-		// 抽到武器
-		allWeaponDataConfig := g.GetAllWeaponDataConfig()
-		weaponDataConfig := allWeaponDataConfig[int32(gachaItemId)]
-		if weaponDataConfig == nil {
-			logger.LOG.Error("weapon item data config not found, item id: %v", gachaItemId)
-			return false, 0
+	case Purple:
+		// 重置4星保底计数
+		gachaPoolInfo.PurpleTimes = 0
+		if mustGetUpEnable {
+			// 找到UP的4星对应的掉落组id 要求配置表的UP的4星掉落组id规则固定为(卡池类型*100+22)
+			upPurpleDropId := int32(gachaType*100 + 22)
+			// 替换本次结果为4星大保底
+			if gachaPoolInfo.MustGetUpPurple {
+				logger.LOG.Debug("trigger must get up purple, user id: %v", userId)
+				upPurpleDropGroupDataConfig := gdc.CONF.DropGroupDataMap[upPurpleDropId]
+				if upPurpleDropGroupDataConfig == nil {
+					logger.LOG.Error("drop group not found, drop id: %v", upPurpleDropId)
+					return false, 0
+				}
+				upPurpleOk, upPurpleDrop := g.doFullRandDrop(upPurpleDropGroupDataConfig)
+				if !upPurpleOk {
+					return false, 0
+				}
+				gachaPoolInfo.MustGetUpPurple = false
+				upPurpleGachaItemId := uint32(upPurpleDrop.Result)
+				return upPurpleOk, upPurpleGachaItemId
+			}
+			// 触发4星大保底
+			if drop.DropId != upPurpleDropId {
+				gachaPoolInfo.MustGetUpPurple = true
+			}
 		}
-		// 重置4星和5星保底计数
-		if weaponDataConfig.RankLevel == 5 {
-			logger.LOG.Debug("[orange weapon], times: %v, gachaItemId: %v", gachaPoolInfo.OrangeTimes, gachaItemId)
-			gachaPoolInfo.OrangeTimes = 0
-		} else if weaponDataConfig.RankLevel == 4 {
-			logger.LOG.Debug("[purple weapon], times: %v, gachaItemId: %v", gachaPoolInfo.PurpleTimes, gachaItemId)
-			gachaPoolInfo.PurpleTimes = 0
-		}
+	default:
 	}
 	return ok, gachaItemId
 }
@@ -484,6 +585,7 @@ func (g *GameManager) doFullRandDrop(dropGroupDataConfig *gdc.DropGroupData) (bo
 func (g *GameManager) doRandDropOnce(dropGroupDataConfig *gdc.DropGroupData) *gdc.Drop {
 	randNum := random.GetRandomInt32(0, dropGroupDataConfig.WeightAll-1)
 	sumWeight := int32(0)
+	// 轮盘选择法
 	for _, drop := range dropGroupDataConfig.DropConfig {
 		sumWeight += drop.Weight
 		if sumWeight > randNum {

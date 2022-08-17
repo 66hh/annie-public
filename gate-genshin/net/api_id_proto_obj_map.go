@@ -9,24 +9,28 @@ import (
 
 func (p *ProtoEnDecode) initMsgProtoMap() {
 	// apiId -> protoObj
-	p.apiIdProtoObjMap[api.ApiGetPlayerTokenReq] = reflect.TypeOf(&proto.GetPlayerTokenReq{})               // 获取玩家token请求
-	p.apiIdProtoObjMap[api.ApiPlayerLoginReq] = reflect.TypeOf(&proto.PlayerLoginReq{})                     // 玩家登录请求
-	p.apiIdProtoObjMap[api.ApiPingReq] = reflect.TypeOf(&proto.PingReq{})                                   // ping请求
-	p.apiIdProtoObjMap[api.ApiPlayerSetPauseReq] = reflect.TypeOf(&proto.PlayerSetPauseReq{})               // 玩家暂停请求
-	p.apiIdProtoObjMap[api.ApiSetPlayerBornDataReq] = reflect.TypeOf(&proto.SetPlayerBornDataReq{})         // 玩家设置初始信息请求
-	p.apiIdProtoObjMap[api.ApiGetPlayerSocialDetailReq] = reflect.TypeOf(&proto.GetPlayerSocialDetailReq{}) // 获取玩家社区信息请求
-	p.apiIdProtoObjMap[api.ApiEnterSceneReadyReq] = reflect.TypeOf(&proto.EnterSceneReadyReq{})             // 进入场景准备就绪请求
-	p.apiIdProtoObjMap[api.ApiGetScenePointReq] = reflect.TypeOf(&proto.GetScenePointReq{})                 // 获取场景信息请求
-	p.apiIdProtoObjMap[api.ApiGetSceneAreaReq] = reflect.TypeOf(&proto.GetSceneAreaReq{})                   // 获取场景区域请求
-	p.apiIdProtoObjMap[api.ApiEnterWorldAreaReq] = reflect.TypeOf(&proto.EnterWorldAreaReq{})               // 进入世界区域请求
-	p.apiIdProtoObjMap[api.ApiUnionCmdNotify] = reflect.TypeOf(&proto.UnionCmdNotify{})                     // 聚合消息
-	p.apiIdProtoObjMap[api.ApiSceneTransToPointReq] = reflect.TypeOf(&proto.SceneTransToPointReq{})         // 场景传送点请求
-	p.apiIdProtoObjMap[api.ApiCombatInvocationsNotify] = reflect.TypeOf(&proto.CombatInvocationsNotify{})   // 战斗调用通知
-	p.apiIdProtoObjMap[api.ApiMarkMapReq] = reflect.TypeOf(&proto.MarkMapReq{})                             // 标记地图请求
-	p.apiIdProtoObjMap[api.ApiChangeAvatarReq] = reflect.TypeOf(&proto.ChangeAvatarReq{})                   // 更换角色请求
-	p.apiIdProtoObjMap[api.ApiSetUpAvatarTeamReq] = reflect.TypeOf(&proto.SetUpAvatarTeamReq{})             // 配置队伍请求
-	p.apiIdProtoObjMap[api.ApiChooseCurAvatarTeamReq] = reflect.TypeOf(&proto.ChooseCurAvatarTeamReq{})     // 切换队伍请求
-	p.apiIdProtoObjMap[api.ApiDoGachaReq] = reflect.TypeOf(&proto.DoGachaReq{})                             // 抽卡请求
+	p.apiIdProtoObjMap[api.ApiGetPlayerTokenReq] = reflect.TypeOf(&proto.GetPlayerTokenReq{})                         // 获取玩家token请求
+	p.apiIdProtoObjMap[api.ApiPlayerLoginReq] = reflect.TypeOf(&proto.PlayerLoginReq{})                               // 玩家登录请求
+	p.apiIdProtoObjMap[api.ApiPingReq] = reflect.TypeOf(&proto.PingReq{})                                             // ping请求
+	p.apiIdProtoObjMap[api.ApiPlayerSetPauseReq] = reflect.TypeOf(&proto.PlayerSetPauseReq{})                         // 玩家暂停请求
+	p.apiIdProtoObjMap[api.ApiSetPlayerBornDataReq] = reflect.TypeOf(&proto.SetPlayerBornDataReq{})                   // 玩家设置初始信息请求
+	p.apiIdProtoObjMap[api.ApiGetPlayerSocialDetailReq] = reflect.TypeOf(&proto.GetPlayerSocialDetailReq{})           // 获取玩家社区信息请求
+	p.apiIdProtoObjMap[api.ApiEnterSceneReadyReq] = reflect.TypeOf(&proto.EnterSceneReadyReq{})                       // 进入场景准备就绪请求
+	p.apiIdProtoObjMap[api.ApiGetScenePointReq] = reflect.TypeOf(&proto.GetScenePointReq{})                           // 获取场景信息请求
+	p.apiIdProtoObjMap[api.ApiGetSceneAreaReq] = reflect.TypeOf(&proto.GetSceneAreaReq{})                             // 获取场景区域请求
+	p.apiIdProtoObjMap[api.ApiEnterWorldAreaReq] = reflect.TypeOf(&proto.EnterWorldAreaReq{})                         // 进入世界区域请求
+	p.apiIdProtoObjMap[api.ApiUnionCmdNotify] = reflect.TypeOf(&proto.UnionCmdNotify{})                               // 聚合消息
+	p.apiIdProtoObjMap[api.ApiSceneTransToPointReq] = reflect.TypeOf(&proto.SceneTransToPointReq{})                   // 场景传送点请求
+	p.apiIdProtoObjMap[api.ApiCombatInvocationsNotify] = reflect.TypeOf(&proto.CombatInvocationsNotify{})             // 战斗调用通知
+	p.apiIdProtoObjMap[api.ApiMarkMapReq] = reflect.TypeOf(&proto.MarkMapReq{})                                       // 标记地图请求
+	p.apiIdProtoObjMap[api.ApiChangeAvatarReq] = reflect.TypeOf(&proto.ChangeAvatarReq{})                             // 更换角色请求
+	p.apiIdProtoObjMap[api.ApiSetUpAvatarTeamReq] = reflect.TypeOf(&proto.SetUpAvatarTeamReq{})                       // 配置队伍请求
+	p.apiIdProtoObjMap[api.ApiChooseCurAvatarTeamReq] = reflect.TypeOf(&proto.ChooseCurAvatarTeamReq{})               // 切换队伍请求
+	p.apiIdProtoObjMap[api.ApiDoGachaReq] = reflect.TypeOf(&proto.DoGachaReq{})                                       // 抽卡请求
+	p.apiIdProtoObjMap[api.ApiQueryPathReq] = reflect.TypeOf(&proto.QueryPathReq{})                                   // 寻路请求
+	p.apiIdProtoObjMap[api.ApiAbilityInvocationsNotify] = reflect.TypeOf(&proto.AbilityInvocationsNotify{})           // 技能使用通知
+	p.apiIdProtoObjMap[api.ApiClientAbilityInitFinishNotify] = reflect.TypeOf(&proto.ClientAbilityInitFinishNotify{}) // 客户端技能初始化完成通知
+	p.apiIdProtoObjMap[api.ApiEntityAiSyncNotify] = reflect.TypeOf(&proto.EntityAiSyncNotify{})                       // 实体AI怪物同步通知
 	// protoObj -> apiId
 	p.protoObjApiIdMap[reflect.TypeOf(&proto.GetPlayerTokenRsp{})] = api.ApiGetPlayerTokenRsp                           // 获取玩家token响应
 	p.protoObjApiIdMap[reflect.TypeOf(&proto.PlayerLoginRsp{})] = api.ApiPlayerLoginRsp                                 // 玩家登录响应
@@ -77,6 +81,10 @@ func (p *ProtoEnDecode) initMsgProtoMap() {
 	p.protoObjApiIdMap[reflect.TypeOf(&proto.PlayerPropNotify{})] = api.ApiPlayerPropNotify                             // 玩家属性通知
 	p.protoObjApiIdMap[reflect.TypeOf(&proto.GetGachaInfoRsp{})] = api.ApiGetGachaInfoRsp                               // 卡池获取响应
 	p.protoObjApiIdMap[reflect.TypeOf(&proto.DoGachaRsp{})] = api.ApiDoGachaRsp                                         // 抽卡响应
+	p.protoObjApiIdMap[reflect.TypeOf(&proto.EntityFightPropUpdateNotify{})] = api.ApiEntityFightPropUpdateNotify       // 实体战斗属性更新通知
+	p.protoObjApiIdMap[reflect.TypeOf(&proto.CombatInvocationsNotify{})] = api.ApiCombatInvocationsNotify               // 战斗调用通知
+	p.protoObjApiIdMap[reflect.TypeOf(&proto.QueryPathRsp{})] = api.ApiQueryPathRsp                                     // 寻路响应
+	p.protoObjApiIdMap[reflect.TypeOf(&proto.EntityAiSyncNotify{})] = api.ApiEntityAiSyncNotify                         // 实体AI怪物同步通知
 	// bypass 尚未得知协议的客户端上行消息
 	p.bypassApiMap[api.ApiPathfindingEnterSceneReq] = true // 寻路进入场景请求
 	p.bypassApiMap[api.ApiSceneInitFinishReq] = true       // 场景初始化完成请求

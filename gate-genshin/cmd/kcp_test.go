@@ -31,6 +31,7 @@ func TestKcpServer(t *testing.T) {
 			panic(err)
 		}
 		fmt.Printf("send len: %v data: %v\n", sendLen, bin)
+		fmt.Printf("RTO: %v, SRTT: %v, SRTTVar: %v\n", conn.GetRTO(), conn.GetSRTT(), conn.GetSRTTVar())
 	}
 }
 
@@ -57,6 +58,7 @@ func TestKcpClient(t *testing.T) {
 			panic(err)
 		}
 		fmt.Printf("recv len: %v data: %v\n", recvLen, recvBuf[:recvLen])
+		fmt.Printf("RTO: %v, SRTT: %v, SRTTVar: %v\n", conn.GetRTO(), conn.GetSRTT(), conn.GetSRTTVar())
 		time.Sleep(time.Second * 10)
 	}
 }

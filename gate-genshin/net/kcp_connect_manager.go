@@ -29,6 +29,7 @@ const (
 	KcpPacketSendNotify
 	KcpConnCloseNotify
 	KcpConnEstNotify
+	KcpConnRttNotify
 )
 
 type KcpEvent struct {
@@ -127,12 +128,13 @@ func (k *KcpConnectManager) Start() {
 					decKey: k.dispatchKey,
 				}
 				k.kcpKeyMapLock.Unlock()
-				go k.recvHandle(convId, conn)
-				kcpRawSendChan := make(chan *KcpMsg, 1000)
+				go k.recvHandle(convId)
+				kcpRawSendChan := make(chan *KcpMsg, 10000)
 				k.kcpRawSendChanMapLock.Lock()
 				k.kcpRawSendChanMap[convId] = kcpRawSendChan
 				k.kcpRawSendChanMapLock.Unlock()
-				go k.sendHandle(convId, conn, kcpRawSendChan)
+				go k.sendHandle(convId, kcpRawSendChan)
+				go k.rttMonitor(convId)
 			}
 		}
 	}()
@@ -183,8 +185,11 @@ func (k *KcpConnectManager) chanSendHandle() {
 	}
 }
 
-func (k *KcpConnectManager) recvHandle(convId uint64, conn *kcp.UDPSession) {
+func (k *KcpConnectManager) recvHandle(convId uint64) {
 	// 接收
+	k.connMapLock.RLock()
+	conn := k.connMap[convId]
+	k.connMapLock.RUnlock()
 	for {
 		recvBuf := make([]byte, 384000)
 		_ = conn.SetReadDeadline(time.Now().Add(time.Second * 30))
@@ -214,8 +219,11 @@ func (k *KcpConnectManager) recvHandle(convId uint64, conn *kcp.UDPSession) {
 	}
 }
 
-func (k *KcpConnectManager) sendHandle(convId uint64, conn *kcp.UDPSession, kcpRawSendChan chan *KcpMsg) {
+func (k *KcpConnectManager) sendHandle(convId uint64, kcpRawSendChan chan *KcpMsg) {
 	// 发送
+	k.connMapLock.RLock()
+	conn := k.connMap[convId]
+	k.connMapLock.RUnlock()
 	for {
 		kcpMsg, ok := <-kcpRawSendChan
 		if !ok {
@@ -240,6 +248,27 @@ func (k *KcpConnectManager) sendHandle(convId uint64, conn *kcp.UDPSession, kcpR
 				ConvId:       convId,
 				EventId:      KcpPacketSendNotify,
 				EventMessage: bin,
+			}
+		}
+	}
+}
+
+func (k *KcpConnectManager) rttMonitor(convId uint64) {
+	ticker := time.NewTicker(time.Second * 10)
+	for {
+		select {
+		case <-ticker.C:
+			k.connMapLock.RLock()
+			conn := k.connMap[convId]
+			k.connMapLock.RUnlock()
+			if conn == nil {
+				break
+			}
+			logger.LOG.Debug("convId: %v, RTO: %v, SRTT: %v, SRTTVar: %v", convId, conn.GetRTO(), conn.GetSRTT(), conn.GetSRTTVar())
+			k.kcpEventOutput <- &KcpEvent{
+				ConvId:       convId,
+				EventId:      KcpConnRttNotify,
+				EventMessage: conn.GetSRTT(),
 			}
 		}
 	}

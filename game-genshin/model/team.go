@@ -41,7 +41,7 @@ func NewTeamInfo() (r *TeamInfo) {
 	return r
 }
 
-func (t *TeamInfo) UpdateTeam(funcGetNextWorldEntityId func(uint16) uint32) {
+func (t *TeamInfo) UpdateTeam(funcGetNextWorldEntityId func(uint16) uint32, funcCreateEntity func(uint16, map[uint32]float32, *Player) uint32, player *Player) {
 	activeTeam := t.GetActiveTeam()
 	// AvatarEntity
 	entityIdTypeConst := constant.GetEntityIdTypeConst()
@@ -51,7 +51,7 @@ func (t *TeamInfo) UpdateTeam(funcGetNextWorldEntityId func(uint16) uint32) {
 			break
 		}
 		avatarEntity := &AvatarEntity{
-			AvatarEntityId: funcGetNextWorldEntityId(entityIdTypeConst.AVATAR),
+			AvatarEntityId: funcCreateEntity(entityIdTypeConst.AVATAR, player.AvatarMap[avatarId].FightPropMap, player),
 			WeaponEntityId: funcGetNextWorldEntityId(entityIdTypeConst.WEAPON),
 		}
 		t.AvatarEntityList[avatarIndex] = avatarEntity

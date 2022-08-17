@@ -127,6 +127,19 @@ func (r *RpcManager) kcpEventHandle() {
 				continue
 			}
 			r.setAddrByConvId(event.ConvId, addr)
+		case net.KcpConnRttNotify:
+			userId, exist := r.getUserIdByConvId(event.ConvId)
+			if !exist {
+				logger.LOG.Error("can not find userId by convId")
+				continue
+			}
+			netMsg := new(api.NetMsg)
+			netMsg.UserId = userId
+			netMsg.EventId = api.ClientRttNotify
+			netMsg.ApiId = 0
+			netMsg.HeadMessage = nil
+			netMsg.PayloadMessage = event.EventMessage
+			r.sendNetMsgToGameServer(netMsg)
 		}
 	}
 }
@@ -234,24 +247,7 @@ func (r *RpcManager) Start() {
 				protoMsg := <-r.protoMsgOutput
 				connState := r.getConnState(protoMsg.ConvId)
 				// gate本地处理的请求
-				if protoMsg.ApiId == api.ApiPingReq {
-					// ping请求
-					// 未登录禁止ping
-					if connState != ConnAlive {
-						continue
-					}
-					pingReq := protoMsg.PayloadMessage.(*proto.PingReq)
-					// TODO 记录客户端最后一次ping时间做超时下线处理
-					pingRsp := new(proto.PingRsp)
-					pingRsp.ClientTime = uint32(pingReq.ClientTime)
-					// 返回数据到客户端
-					resp := new(net.ProtoMsg)
-					resp.ConvId = protoMsg.ConvId
-					resp.ApiId = api.ApiPingRsp
-					resp.HeadMessage = r.getHeadMsg(protoMsg.HeadMessage.ClientSequenceId)
-					resp.PayloadMessage = pingRsp
-					r.protoMsgInput <- resp
-				} else if protoMsg.ApiId == api.ApiGetPlayerTokenReq {
+				if protoMsg.ApiId == api.ApiGetPlayerTokenReq {
 					// 获取玩家token请求
 					if connState != ConnWaitToken {
 						continue
