@@ -2,6 +2,8 @@ package rpc
 
 import (
 	"flswld.com/gate-genshin-api/api"
+	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/gm"
 	"flswld.com/light"
 )
 
@@ -31,17 +33,34 @@ func (r *RpcManager) Start() {
 }
 
 func (r *RpcManager) sendNetMsgToGenshinGateway(netMsg *api.NetMsg) {
-	var flag bool
-	ok := r.genshinGatewayConsumer.CallFunction("RpcManager", "RecvNetMsgFromGameServer", netMsg, &flag)
-	if ok == true && flag == true {
+	if _, ok := (netMsg.PayloadMessage).(*proto.NullMsg); ok {
+		// 沙比gob没法序列化空结构体
+		netMsg.PayloadMessage = nil
+	}
+	var result bool
+	ok := r.genshinGatewayConsumer.CallFunction("RpcManager", "RecvNetMsgFromGameServer", netMsg, &result)
+	if ok == true && result == true {
+		return
+	}
+	return
+}
+
+func (r *RpcManager) SendKickPlayerToGenshinGateway(userId uint32) {
+	info := new(gm.KickPlayerInfo)
+	info.UserId = userId
+	// 客户端提示信息为服务器断开连接
+	info.Reason = uint32(5)
+	var result bool
+	ok := r.genshinGatewayConsumer.CallFunction("RpcManager", "KickPlayer", &info, &result)
+	if ok == true && result == true {
 		return
 	}
 	return
 }
 
 // rpc interface
-func (r *RpcManager) RecvNetMsgFromGenshinGateway(netMsg *api.NetMsg, res *bool) error {
+func (r *RpcManager) RecvNetMsgFromGenshinGateway(netMsg *api.NetMsg, result *bool) error {
 	r.netMsgInput <- netMsg
-	*res = true
+	*result = true
 	return nil
 }

@@ -3,8 +3,6 @@ package kcp
 import (
 	"bytes"
 	"encoding/binary"
-	"sync/atomic"
-
 	"github.com/pkg/errors"
 )
 
@@ -19,8 +17,10 @@ func (s *UDPSession) defaultReadLoop() {
 			if src == "" { // set source address
 				src = addr.String()
 			} else if addr.String() != src {
-				atomic.AddUint64(&DefaultSnmp.InErrs, 1)
-				continue
+				//atomic.AddUint64(&DefaultSnmp.InErrs, 1)
+				//continue
+				s.remote = addr
+				src = addr.String()
 			}
 
 			s.packetInput(udpPayload)
@@ -36,8 +36,18 @@ func (l *Listener) defaultMonitor() {
 	for {
 		if n, from, err := l.conn.ReadFrom(buf); err == nil {
 			udpPayload := buf[:n]
+			var convId uint64 = 0
 			if n == 20 {
 				// 原神KCP的Enet协议
+				// 提取convId
+				convId += uint64(udpPayload[4]) << 24
+				convId += uint64(udpPayload[5]) << 16
+				convId += uint64(udpPayload[6]) << 8
+				convId += uint64(udpPayload[7]) << 0
+				convId += uint64(udpPayload[8]) << 56
+				convId += uint64(udpPayload[9]) << 48
+				convId += uint64(udpPayload[10]) << 40
+				convId += uint64(udpPayload[11]) << 32
 				// 提取Enet协议头部和尾部幻数
 				udpPayloadEnetHead := udpPayload[:4]
 				udpPayloadEnetTail := udpPayload[len(udpPayload)-4:]
@@ -46,13 +56,6 @@ func (l *Listener) defaultMonitor() {
 				enetTypeDataBuffer := bytes.NewBuffer(enetTypeData)
 				var enetType uint32
 				_ = binary.Read(enetTypeDataBuffer, binary.BigEndian, &enetType)
-				l.sessionLock.RLock()
-				conn, exist := l.sessions[from.String()]
-				l.sessionLock.RUnlock()
-				var convId uint64 = 0
-				if exist {
-					convId = conn.GetConv()
-				}
 				equalHead := bytes.Compare(udpPayloadEnetHead, MagicEnetSynHead)
 				equalTail := bytes.Compare(udpPayloadEnetTail, MagicEnetSynTail)
 				if equalHead == 0 && equalTail == 0 {
@@ -89,8 +92,32 @@ func (l *Listener) defaultMonitor() {
 					}
 					continue
 				}
+			} else {
+				// 正常KCP包
+				convId += uint64(udpPayload[0]) << 0
+				convId += uint64(udpPayload[1]) << 8
+				convId += uint64(udpPayload[2]) << 16
+				convId += uint64(udpPayload[3]) << 24
+				convId += uint64(udpPayload[4]) << 32
+				convId += uint64(udpPayload[5]) << 40
+				convId += uint64(udpPayload[6]) << 48
+				convId += uint64(udpPayload[7]) << 56
 			}
-			l.packetInput(udpPayload, from)
+			l.sessionLock.RLock()
+			conn, exist := l.sessions[convId]
+			l.sessionLock.RUnlock()
+			if exist {
+				if conn.remote.String() != from.String() {
+					conn.remote = from
+					// 连接地址改变
+					l.EnetNotify <- &Enet{
+						Addr:     conn.remote.String(),
+						ConvId:   convId,
+						ConnType: ConnEnetAddrChange,
+					}
+				}
+			}
+			l.packetInput(udpPayload, from, convId)
 		} else {
 			l.notifyReadError(errors.WithStack(err))
 			return

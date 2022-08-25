@@ -10,6 +10,7 @@ import (
 	"gate-genshin/net"
 	"gate-genshin/region"
 	"io/ioutil"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -37,6 +38,9 @@ type RpcManager struct {
 	// kcpConv -> ipAddr
 	convAddrMap     map[uint64]string
 	convAddrMapLock sync.RWMutex
+	// kcpConv -> seq
+	convSeqMap      map[uint64]uint32
+	convSeqMapLock  sync.RWMutex
 	secretKeyBuffer []byte
 	kcpEventInput   chan *net.KcpEvent
 	kcpEventOutput  chan *net.KcpEvent
@@ -55,13 +59,20 @@ func NewRpcManager(dao *dao.Dao, gameServiceConsumer *light.Consumer, protoMsgIn
 	r.convUserIdMap = make(map[uint64]uint32)
 	r.userIdConvMap = make(map[uint32]uint64)
 	r.convAddrMap = make(map[uint64]string)
+	r.convSeqMap = make(map[uint64]uint32)
 	r.kcpEventInput = kcpEventInput
 	r.kcpEventOutput = kcpEventOutput
 	return r
 }
 
-func (r *RpcManager) getHeadMsg(seq uint32) (headMsg *api.PacketHead) {
+func (r *RpcManager) getHeadMsg(convId uint64) (headMsg *api.PacketHead) {
 	headMsg = new(api.PacketHead)
+	seq, exist := r.getSeqByConvId(convId)
+	if !exist {
+		logger.LOG.Error("can not find seq by convId")
+		return nil
+	}
+	r.setSeqByConvId(convId, seq+1)
 	headMsg.ClientSequenceId = seq
 	headMsg.Timestamp = uint64(time.Now().UnixMilli())
 	return headMsg
@@ -120,6 +131,7 @@ func (r *RpcManager) kcpEventHandle() {
 				r.deleteConvIdByUserId(userId)
 			}
 			r.deleteAddrByConvId(event.ConvId)
+			r.deleteSeqByConvId(event.ConvId)
 		case net.KcpConnEstNotify:
 			addr, ok := event.EventMessage.(string)
 			if !ok {
@@ -127,6 +139,7 @@ func (r *RpcManager) kcpEventHandle() {
 				continue
 			}
 			r.setAddrByConvId(event.ConvId, addr)
+			r.setSeqByConvId(event.ConvId, 1)
 		case net.KcpConnRttNotify:
 			userId, exist := r.getUserIdByConvId(event.ConvId)
 			if !exist {
@@ -140,6 +153,17 @@ func (r *RpcManager) kcpEventHandle() {
 			netMsg.HeadMessage = nil
 			netMsg.PayloadMessage = event.EventMessage
 			r.sendNetMsgToGameServer(netMsg)
+		case net.KcpConnAddrChangeNotify:
+			r.convAddrMapLock.Lock()
+			_, exist := r.convAddrMap[event.ConvId]
+			if !exist {
+				r.convAddrMapLock.Unlock()
+				logger.LOG.Error("conn addr change but conn can not be found")
+				continue
+			}
+			addr := event.EventMessage.(string)
+			r.convAddrMap[event.ConvId] = addr
+			r.convAddrMapLock.Unlock()
 		}
 	}
 }
@@ -226,6 +250,25 @@ func (r *RpcManager) deleteAddrByConvId(convId uint64) {
 	r.convAddrMapLock.Unlock()
 }
 
+func (r *RpcManager) getSeqByConvId(convId uint64) (seq uint32, exist bool) {
+	r.convSeqMapLock.RLock()
+	seq, exist = r.convSeqMap[convId]
+	r.convSeqMapLock.RUnlock()
+	return seq, exist
+}
+
+func (r *RpcManager) setSeqByConvId(convId uint64, seq uint32) {
+	r.convSeqMapLock.Lock()
+	r.convSeqMap[convId] = seq
+	r.convSeqMapLock.Unlock()
+}
+
+func (r *RpcManager) deleteSeqByConvId(convId uint64) {
+	r.convSeqMapLock.Lock()
+	delete(r.convSeqMap, convId)
+	r.convSeqMapLock.Unlock()
+}
+
 func (r *RpcManager) Start() {
 	// 读取密钥相关文件
 	var err error = nil
@@ -241,7 +284,8 @@ func (r *RpcManager) Start() {
 	// kcp事件监听
 	go r.kcpEventHandle()
 	// 接收客户端消息
-	for i := 0; i < 100; i++ {
+	cpuCoreNum := runtime.NumCPU()
+	for i := 0; i < cpuCoreNum*10; i++ {
 		go func(index int) {
 			for {
 				protoMsg := <-r.protoMsgOutput
@@ -267,7 +311,7 @@ func (r *RpcManager) Start() {
 					resp := new(net.ProtoMsg)
 					resp.ConvId = protoMsg.ConvId
 					resp.ApiId = api.ApiGetPlayerTokenRsp
-					resp.HeadMessage = r.getHeadMsg(11)
+					resp.HeadMessage = r.getHeadMsg(protoMsg.ConvId)
 					resp.PayloadMessage = getPlayerTokenRsp
 					r.protoMsgInput <- resp
 				} else if protoMsg.ApiId == api.ApiPlayerLoginReq {
@@ -299,7 +343,7 @@ func (r *RpcManager) Start() {
 						resp := new(net.ProtoMsg)
 						resp.ConvId = protoMsg.ConvId
 						resp.ApiId = api.ApiPlayerLoginRsp
-						resp.HeadMessage = r.getHeadMsg(1)
+						resp.HeadMessage = r.getHeadMsg(protoMsg.ConvId)
 						resp.PayloadMessage = playerLoginRsp
 						r.protoMsgInput <- resp
 					}()
@@ -329,9 +373,13 @@ func (r *RpcManager) Start() {
 }
 
 func (r *RpcManager) sendNetMsgToGameServer(netMsg *api.NetMsg) {
-	var flag bool
-	ok := r.gameServiceConsumer.CallFunction("RpcManager", "RecvNetMsgFromGenshinGateway", netMsg, &flag)
-	if ok == true && flag == true {
+	if _, ok := (netMsg.PayloadMessage).(*proto.NullMsg); ok {
+		// 沙比gob没法序列化空结构体
+		netMsg.PayloadMessage = nil
+	}
+	var result bool
+	ok := r.gameServiceConsumer.CallFunction("RpcManager", "RecvNetMsgFromGenshinGateway", netMsg, &result)
+	if ok == true && result == true {
 		return
 	}
 	return

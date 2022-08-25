@@ -264,41 +264,59 @@ func (g *GameManager) DoGachaReq(userId uint32, headMsg *api.PacketHead, payload
 		if !ok {
 			itemId = 11301
 		}
+
+		// 添加抽卡获得的道具
+		if itemId > 1000 && itemId < 2000 {
+			avatarId := (itemId % 1000) + 10000000
+			_, exist := player.AvatarMap[avatarId]
+			if !exist {
+				g.AddUserAvatar(player.PlayerID, avatarId)
+			} else {
+				constellationItemId := itemId + 100
+				if player.GetItemCount(constellationItemId) < 6 {
+					g.AddUserItem(player.PlayerID, []*UserItem{{ItemId: constellationItemId, ChangeCount: 1}}, false)
+				}
+			}
+		} else if itemId > 10000 && itemId < 20000 {
+			g.AddUserWeapon(player.PlayerID, itemId)
+		} else {
+			g.AddUserItem(player.PlayerID, []*UserItem{{ItemId: itemId, ChangeCount: 1}}, false)
+		}
+
+		// 计算星尘星辉
+		xc := uint32(random.GetRandomInt32(0, 10))
+		xh := uint32(random.GetRandomInt32(0, 10))
+
 		gachaItem := new(proto.GachaItem)
 		gachaItem.GachaItem_ = &proto.ItemParam{
 			ItemId: itemId,
 			Count:  1,
 		}
-
-		//gachaItem.TokenItemList = []*proto.ItemParam{{
-		//	// 星尘
-		//	ItemId: 222,
-		//	Count:  15,
-		//}}
-		//gachaItem.TransferItems = []*proto.GachaTransferItem{{
-		//	Item: &proto.ItemParam{
-		//		// 星辉
-		//		ItemId: 221,
-		//		Count:  5,
-		//	},
-		//}}
-
+		// 星尘
+		if xc != 0 {
+			g.AddUserItem(player.PlayerID, []*UserItem{{
+				ItemId:      222,
+				ChangeCount: xc,
+			}}, false)
+			gachaItem.TokenItemList = []*proto.ItemParam{{
+				ItemId: 222,
+				Count:  xc,
+			}}
+		}
+		// 星辉
+		if xh != 0 {
+			g.AddUserItem(player.PlayerID, []*UserItem{{
+				ItemId:      221,
+				ChangeCount: xh,
+			}}, false)
+			gachaItem.TransferItems = []*proto.GachaTransferItem{{
+				Item: &proto.ItemParam{
+					ItemId: 221,
+					Count:  xh,
+				},
+			}}
+		}
 		doGachaRsp.GachaItemList = append(doGachaRsp.GachaItemList, gachaItem)
-
-		//// 添加抽卡获得的道具
-		//g.AddUserItem(player.PlayerID, []*UserItem{
-		//	// 星尘
-		//	{
-		//		ItemId:      222,
-		//		ChangeCount: 15,
-		//	},
-		//	// 星辉
-		//	{
-		//		ItemId:      221,
-		//		ChangeCount: 5,
-		//	},
-		//}, false)
-		//g.AddUserWeapon(player.PlayerID, 13303)
 	}
 
 	//logger.LOG.Debug("doGachaRsp: %v", doGachaRsp.String())

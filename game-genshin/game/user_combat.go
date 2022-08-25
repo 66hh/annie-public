@@ -11,7 +11,6 @@ import (
 func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
 	//logger.LOG.Debug("user combat invocations, user id: %v", userId)
 	req := payloadMsg.(*proto.CombatInvocationsNotify)
-	//logger.LOG.Debug("req CombatInvocationsNotify: %v", req)
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, user id: %v", userId)
@@ -25,6 +24,11 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *api.Packet
 	invokeHandler := NewInvokeHandler[proto.CombatInvokeEntry]()
 	for _, entry := range req.InvokeList {
 		switch entry.ArgumentType {
+		case proto.CombatTypeArgument_COMBAT_TYPE_ARGUMENT_EVT_BEING_HIT:
+			scene.AddAttack(&Attack{
+				combatInvokeEntry: entry,
+				uid:               player.PlayerID,
+			})
 		case proto.CombatTypeArgument_COMBAT_TYPE_ARGUMENT_ENTITY_MOVE:
 			entityMoveInfo := new(proto.EntityMoveInfo)
 			err := pb.Unmarshal(entry.CombatData, entityMoveInfo)
@@ -52,8 +56,11 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *api.Packet
 				sceneEntity.moveState = uint16(motionInfo.State)
 				sceneEntity.lastMoveSceneTimeMs = entityMoveInfo.SceneTime
 				sceneEntity.lastMoveReliableSeq = entityMoveInfo.ReliableSeq
+				//logger.LOG.Debug("entity move, id: %v, pos: %v, uid: %v", sceneEntity.id, sceneEntity.pos, player.PlayerID)
 			}
-			if entityMoveInfo.EntityId == player.TeamConfig.GetActiveAvatarEntity().AvatarEntityId {
+			activeAvatarId := player.TeamConfig.GetActiveAvatarId()
+			playerTeamEntity := scene.GetPlayerTeamEntity(player.PlayerID)
+			if entityMoveInfo.EntityId == playerTeamEntity.avatarEntityMap[activeAvatarId] {
 				// 玩家在移动
 				if motionInfo.Pos != nil && motionInfo.Rot != nil {
 					player.Pos.X = float64(motionInfo.Pos.X)
@@ -65,11 +72,8 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *api.Packet
 				}
 			}
 			invokeHandler.addEntry(entry.ForwardType, entry)
-		case proto.CombatTypeArgument_COMBAT_TYPE_ARGUMENT_EVT_BEING_HIT:
-			scene.AddAttack(&Attack{
-				combatInvokeEntry: entry,
-				uid:               player.PlayerID,
-			})
+		default:
+			invokeHandler.addEntry(entry.ForwardType, entry)
 		}
 	}
 
@@ -101,7 +105,6 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *api.Packet
 func (g *GameManager) AbilityInvocationsNotify(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
 	//logger.LOG.Debug("user ability invocations, user id: %v", userId)
 	req := payloadMsg.(*proto.AbilityInvocationsNotify)
-	//logger.LOG.Debug("req AbilityInvocationsNotify: %v", req)
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, user id: %v", userId)
@@ -145,7 +148,6 @@ func (g *GameManager) AbilityInvocationsNotify(userId uint32, headMsg *api.Packe
 func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
 	//logger.LOG.Debug("user client ability ok, user id: %v", userId)
 	req := payloadMsg.(*proto.ClientAbilityInitFinishNotify)
-	//logger.LOG.Debug("req ClientAbilityInitFinishNotify: %v", req)
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, user id: %v", userId)

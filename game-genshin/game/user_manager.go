@@ -25,18 +25,30 @@ func NewUserManager(dao *dao.Dao, localEventChan chan *LocalEvent) (r *UserManag
 	return r
 }
 
-func (u *UserManager) GetTargetUserOnlineState(userId uint32) bool {
+func (u *UserManager) GetUserOnlineState(userId uint32) bool {
 	u.playerMapLock.RLock()
-	_, exist := u.playerMap[userId]
+	player, exist := u.playerMap[userId]
 	u.playerMapLock.RUnlock()
-	return exist
+	if !exist {
+		return false
+	} else {
+		return player.Online
+	}
 }
 
 func (u *UserManager) GetOnlineUser(userId uint32) *model.Player {
 	u.playerMapLock.RLock()
-	player := u.playerMap[userId]
+	player, exist := u.playerMap[userId]
 	u.playerMapLock.RUnlock()
-	return player
+	if !exist {
+		return nil
+	} else {
+		if player.Online {
+			return player
+		} else {
+			return nil
+		}
+	}
 }
 
 type PlayerRegInfo struct {
@@ -210,7 +222,7 @@ func (u *UserManager) ChangeUserDbState(player *model.Player, state int) {
 func (u *UserManager) StartAutoSaveUser() {
 	// 用户数据库定时同步协程
 	go func() {
-		var ticker *time.Ticker = nil
+		ticker := time.NewTicker(time.Minute * 5)
 		for {
 			logger.LOG.Info("auto save user start")
 			playerMapTemp := make(map[uint32]*model.Player)
@@ -265,9 +277,7 @@ func (u *UserManager) StartAutoSaveUser() {
 			u.playerMap = playerMapTemp
 			u.playerMapLock.Unlock()
 			logger.LOG.Info("auto save user finish")
-			ticker = time.NewTicker(time.Minute * 5)
 			<-ticker.C
-			ticker.Stop()
 		}
 	}()
 }

@@ -12,11 +12,11 @@ import (
 // rpc interface
 
 // 从GS接收消息
-func (r *RpcManager) RecvNetMsgFromGameServer(netMsg *api.NetMsg, res *bool) error {
-	if netMsg == nil || res == nil {
+func (r *RpcManager) RecvNetMsgFromGameServer(netMsg *api.NetMsg, result *bool) error {
+	if netMsg == nil || result == nil {
 		return errors.New("param is nil")
 	}
-	*res = true
+	*result = true
 	if netMsg.EventId == api.NormalMsg {
 		protoMsg := new(net.ProtoMsg)
 		convId, exist := r.getConvIdByUserId(netMsg.UserId)
@@ -27,7 +27,7 @@ func (r *RpcManager) RecvNetMsgFromGameServer(netMsg *api.NetMsg, res *bool) err
 			return nil
 		}
 		protoMsg.ApiId = netMsg.ApiId
-		protoMsg.HeadMessage = netMsg.HeadMessage
+		protoMsg.HeadMessage = r.getHeadMsg(protoMsg.ConvId)
 		protoMsg.PayloadMessage = netMsg.PayloadMessage
 		r.protoMsgInput <- protoMsg
 		return nil

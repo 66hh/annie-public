@@ -19,18 +19,21 @@ type Weapon struct {
 	Guid        uint64   `bson:"-"`
 }
 
-func (p *Player) InitWeapon(weapon *Weapon) *Weapon {
+func (p *Player) InitWeapon(weapon *Weapon) {
 	weapon.Guid = p.GetNextGameObjectGuid()
-	return weapon
+	p.GameObjectGuidMap[weapon.Guid] = GameObject(weapon)
+	p.WeaponMap[weapon.WeaponId] = weapon
+	if weapon.AvatarId != 0 {
+		avatar := p.AvatarMap[weapon.AvatarId]
+		avatar.EquipGuidList[weapon.Guid] = weapon.Guid
+		avatar.EquipWeapon = weapon
+	}
+	return
 }
 
 func (p *Player) InitAllWeapon() {
-	for weaponId, weapon := range p.WeaponMap {
-		p.WeaponMap[weaponId] = p.InitWeapon(weapon)
-		if weapon.AvatarId != 0 {
-			p.AvatarMap[weapon.AvatarId].EquipGuidList = append(p.AvatarMap[weapon.AvatarId].EquipGuidList, weapon.Guid)
-			p.AvatarMap[weapon.AvatarId].EquipWeapon = weapon
-		}
+	for _, weapon := range p.WeaponMap {
+		p.InitWeapon(weapon)
 	}
 }
 
@@ -70,11 +73,4 @@ func (p *Player) AddWeapon(itemId uint32, weaponId uint64) {
 	}
 	p.InitWeapon(weapon)
 	p.WeaponMap[weaponId] = weapon
-}
-
-func (p *Player) EquipWeaponToAvatar(avatarId uint32, weaponId uint64) {
-	avatar := p.AvatarMap[avatarId]
-	weapon := p.WeaponMap[weaponId]
-	avatar.EquipWeapon = weapon
-	weapon.AvatarId = avatarId
 }

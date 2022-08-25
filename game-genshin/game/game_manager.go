@@ -4,11 +4,13 @@ import (
 	"flswld.com/common/utils/alg"
 	"flswld.com/gate-genshin-api/api"
 	"game-genshin/dao"
+	"game-genshin/rpc"
 	"time"
 )
 
 type GameManager struct {
 	dao          *dao.Dao
+	rpcManager   *rpc.RpcManager
 	netMsgInput  chan *api.NetMsg
 	netMsgOutput chan *api.NetMsg
 	snowflake    *alg.SnowflakeWorker
@@ -24,9 +26,10 @@ type GameManager struct {
 	tickManager *TickManager
 }
 
-func NewGameManager(dao *dao.Dao, netMsgInput chan *api.NetMsg, netMsgOutput chan *api.NetMsg) (r *GameManager) {
+func NewGameManager(dao *dao.Dao, rpcManager *rpc.RpcManager, netMsgInput chan *api.NetMsg, netMsgOutput chan *api.NetMsg) (r *GameManager) {
 	r = new(GameManager)
 	r.dao = dao
+	r.rpcManager = rpcManager
 	r.netMsgInput = netMsgInput
 	r.netMsgOutput = netMsgOutput
 	r.snowflake = alg.NewSnowflakeWorker(1)
@@ -74,4 +77,8 @@ func (g *GameManager) getHeadMsg(seq uint32) (headMsg *api.PacketHead) {
 	headMsg.ClientSequenceId = seq
 	headMsg.Timestamp = uint64(time.Now().UnixMilli())
 	return headMsg
+}
+
+func (g *GameManager) KickPlayer(userId uint32) {
+	g.rpcManager.SendKickPlayerToGenshinGateway(userId)
 }

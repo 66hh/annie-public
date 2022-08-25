@@ -6,13 +6,11 @@ package kcp
 import (
 	"bytes"
 	"encoding/binary"
-	"net"
-	"os"
-	"sync/atomic"
-
 	"github.com/pkg/errors"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
+	"net"
+	"os"
 )
 
 // the read loop for a client session
@@ -39,8 +37,10 @@ func (s *UDPSession) readLoop() {
 				if src == "" { // set source address if nil
 					src = msg.Addr.String()
 				} else if msg.Addr.String() != src {
-					atomic.AddUint64(&DefaultSnmp.InErrs, 1)
-					continue
+					//atomic.AddUint64(&DefaultSnmp.InErrs, 1)
+					//continue
+					s.remote = msg.Addr
+					src = msg.Addr.String()
 				}
 
 				udpPayload := msg.Buffers[0][:msg.N]
@@ -97,8 +97,18 @@ func (l *Listener) monitor() {
 			for i := 0; i < count; i++ {
 				msg := &msgs[i]
 				udpPayload := msg.Buffers[0][:msg.N]
+				var convId uint64 = 0
 				if msg.N == 20 {
 					// 原神KCP的Enet协议
+					// 提取convId
+					convId += uint64(udpPayload[4]) << 24
+					convId += uint64(udpPayload[5]) << 16
+					convId += uint64(udpPayload[6]) << 8
+					convId += uint64(udpPayload[7]) << 0
+					convId += uint64(udpPayload[8]) << 56
+					convId += uint64(udpPayload[9]) << 48
+					convId += uint64(udpPayload[10]) << 40
+					convId += uint64(udpPayload[11]) << 32
 					// 提取Enet协议头部和尾部幻数
 					udpPayloadEnetHead := udpPayload[:4]
 					udpPayloadEnetTail := udpPayload[len(udpPayload)-4:]
@@ -107,13 +117,6 @@ func (l *Listener) monitor() {
 					enetTypeDataBuffer := bytes.NewBuffer(enetTypeData)
 					var enetType uint32
 					_ = binary.Read(enetTypeDataBuffer, binary.BigEndian, &enetType)
-					l.sessionLock.RLock()
-					conn, exist := l.sessions[msg.Addr.String()]
-					l.sessionLock.RUnlock()
-					var convId uint64 = 0
-					if exist {
-						convId = conn.GetConv()
-					}
 					equalHead := bytes.Compare(udpPayloadEnetHead, MagicEnetSynHead)
 					equalTail := bytes.Compare(udpPayloadEnetTail, MagicEnetSynTail)
 					if equalHead == 0 && equalTail == 0 {
@@ -150,8 +153,32 @@ func (l *Listener) monitor() {
 						}
 						continue
 					}
+				} else {
+					// 正常KCP包
+					convId += uint64(udpPayload[0]) << 0
+					convId += uint64(udpPayload[1]) << 8
+					convId += uint64(udpPayload[2]) << 16
+					convId += uint64(udpPayload[3]) << 24
+					convId += uint64(udpPayload[4]) << 32
+					convId += uint64(udpPayload[5]) << 40
+					convId += uint64(udpPayload[6]) << 48
+					convId += uint64(udpPayload[7]) << 56
 				}
-				l.packetInput(udpPayload, msg.Addr)
+				l.sessionLock.RLock()
+				conn, exist := l.sessions[convId]
+				l.sessionLock.RUnlock()
+				if exist {
+					if conn.remote.String() != msg.Addr.String() {
+						conn.remote = msg.Addr
+						// 连接地址改变
+						l.EnetNotify <- &Enet{
+							Addr:     conn.remote.String(),
+							ConvId:   convId,
+							ConnType: ConnEnetAddrChange,
+						}
+					}
+				}
+				l.packetInput(udpPayload, msg.Addr, convId)
 			}
 		} else {
 			// compatibility issue:

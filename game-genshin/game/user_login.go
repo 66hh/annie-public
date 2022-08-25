@@ -1,7 +1,6 @@
 package game
 
 import (
-	"flswld.com/common/utils/random"
 	"flswld.com/common/utils/reflection"
 	"flswld.com/gate-genshin-api/api"
 	"flswld.com/gate-genshin-api/api/proto"
@@ -9,7 +8,6 @@ import (
 	gdc "game-genshin/config"
 	"game-genshin/constant"
 	"game-genshin/model"
-	"strconv"
 	"time"
 )
 
@@ -23,22 +21,23 @@ func (g *GameManager) OnLogin(userId uint32) {
 
 func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 	if player == nil {
-		g.SendMsg(api.ApiDoSetPlayerBornDataNotify, userId, nil, nil)
+		g.SendMsg(api.ApiDoSetPlayerBornDataNotify, userId, nil, new(proto.NullMsg))
 		return
 	}
 	// 创建世界
-	world := g.worldManager.CreateWorld(player)
+	player.Online = true
+	world := g.worldManager.CreateWorld(player, false)
 	world.AddPlayer(player, player.SceneId)
 	player.WorldId = world.id
-	player.PeerId = world.GetNextWorldPeerId()
 	// 初始化
 	player.InitAll()
 	playerPropertyConst := constant.GetPlayerPropertyConst()
 	player.Properties[playerPropertyConst.PROP_PLAYER_MP_SETTING_TYPE] = uint32(player.MpSetting.Number())
 	player.Properties[playerPropertyConst.PROP_IS_MP_MODE_AVAILABLE] = 1
 	//g.userManager.UpdateUser(player)
+	player.TeamConfig.UpdateTeam()
 	scene := world.GetSceneById(player.SceneId)
-	player.TeamConfig.UpdateTeam(world.GetNextWorldEntityId, scene.CreateEntity, player)
+	scene.UpdatePlayerTeamEntity(player)
 
 	// PacketPlayerDataNotify
 	playerDataNotify := new(proto.PlayerDataNotify)
@@ -54,7 +53,7 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 		propValue.Val = int64(v)
 		playerDataNotify.PropMap[uint32(k)] = propValue
 	}
-	g.SendMsg(api.ApiPlayerDataNotify, userId, g.getHeadMsg(2), playerDataNotify)
+	g.SendMsg(api.ApiPlayerDataNotify, userId, nil, playerDataNotify)
 
 	// PacketStoreWeightLimitNotify
 	storeWeightLimitNotify := new(proto.StoreWeightLimitNotify)
@@ -133,14 +132,14 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 			Guid:   item.Guid,
 			Detail: nil,
 		}
-		switch itemDataMapConfig[int32(item.ItemId)].ItemEnumType {
-		case itemTypeConst.ITEM_FURNITURE:
+		itemDataConfig := itemDataMapConfig[int32(item.ItemId)]
+		if itemDataConfig != nil && itemDataConfig.ItemEnumType == itemTypeConst.ITEM_FURNITURE {
 			pbItem.Detail = &proto.Item_Furniture{
 				Furniture: &proto.Furniture{
 					Count: item.Count,
 				},
 			}
-		default:
+		} else {
 			pbItem.Detail = &proto.Item_Material{
 				Material: &proto.Material{
 					Count:      item.Count,
@@ -150,7 +149,7 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 		}
 		playerStoreNotify.ItemList = append(playerStoreNotify.ItemList, pbItem)
 	}
-	g.SendMsg(api.ApiPlayerStoreNotify, userId, g.getHeadMsg(2), playerStoreNotify)
+	g.SendMsg(api.ApiPlayerStoreNotify, userId, nil, playerStoreNotify)
 
 	// PacketAvatarDataNotify
 	avatarDataNotify := new(proto.AvatarDataNotify)
@@ -160,70 +159,8 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 	avatarDataNotify.OwnedFlycloakList = player.FlyCloakList
 	// 角色衣装
 	avatarDataNotify.OwnedCostumeList = player.CostumeList
-	fetterStateConst := constant.GetFetterStateConst()
-	for avatarId, avatar := range player.AvatarMap {
-		pbAvatar := &proto.AvatarInfo{
-			AvatarId: avatar.AvatarId,
-			Guid:     avatar.Guid,
-			PropMap: map[uint32]*proto.PropValue{
-				uint32(playerPropertyConst.PROP_LEVEL): {
-					Type:  uint32(playerPropertyConst.PROP_LEVEL),
-					Value: &proto.PropValue_Ival{Ival: int64(avatar.Level)},
-				},
-				uint32(playerPropertyConst.PROP_EXP): {
-					Type:  uint32(playerPropertyConst.PROP_EXP),
-					Value: &proto.PropValue_Ival{Ival: int64(avatar.Exp)},
-				},
-				uint32(playerPropertyConst.PROP_BREAK_LEVEL): {
-					Type:  uint32(playerPropertyConst.PROP_BREAK_LEVEL),
-					Value: &proto.PropValue_Ival{Ival: int64(avatar.Promote)},
-				},
-				uint32(playerPropertyConst.PROP_SATIATION_VAL): {
-					Type:  uint32(playerPropertyConst.PROP_SATIATION_VAL),
-					Value: &proto.PropValue_Ival{Ival: 0},
-				},
-				uint32(playerPropertyConst.PROP_SATIATION_PENALTY_TIME): {
-					Type:  uint32(playerPropertyConst.PROP_SATIATION_PENALTY_TIME),
-					Value: &proto.PropValue_Ival{Ival: 0},
-				},
-			},
-			LifeState:     1,
-			EquipGuidList: avatar.EquipGuidList,
-			FightPropMap:  nil,
-			SkillDepotId:  avatar.SkillDepotId,
-			FetterInfo: &proto.AvatarFetterInfo{
-				ExpLevel:  uint32(avatar.FetterLevel),
-				ExpNumber: avatar.FetterExp,
-				// FetterList 不知道是啥 该角色在配置表里的所有FetterId
-				// TODO 资料解锁条目
-				FetterList:              nil,
-				RewardedFetterLevelList: []uint32{10},
-			},
-			SkillLevelMap:     nil,
-			AvatarType:        1,
-			WearingFlycloakId: avatar.FlyCloak,
-			BornTime:          uint32(avatar.BornTime),
-		}
-
-		player.AvatarMap[avatarId] = avatar
-		pbAvatar.FightPropMap = avatar.FightPropMap
-		for _, v := range avatar.FetterList {
-			pbAvatar.FetterInfo.FetterList = append(pbAvatar.FetterInfo.FetterList, &proto.FetterData{
-				FetterId:    v,
-				FetterState: uint32(fetterStateConst.FINISH),
-			})
-		}
-		// 解锁全部资料
-		for _, v := range gdc.CONF.AvatarFetterDataMap[int32(avatar.AvatarId)] {
-			pbAvatar.FetterInfo.FetterList = append(pbAvatar.FetterInfo.FetterList, &proto.FetterData{
-				FetterId:    uint32(v),
-				FetterState: uint32(fetterStateConst.FINISH),
-			})
-		}
-		pbAvatar.SkillLevelMap = make(map[uint32]uint32)
-		for k, v := range avatar.SkillLevelMap {
-			pbAvatar.SkillLevelMap[k] = v
-		}
+	for _, avatar := range player.AvatarMap {
+		pbAvatar := g.PacketAvatarInfo(avatar)
 		avatarDataNotify.AvatarList = append(avatarDataNotify.AvatarList, pbAvatar)
 	}
 	avatarDataNotify.AvatarTeamMap = make(map[uint32]*proto.AvatarTeam)
@@ -240,24 +177,12 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 			TeamName:       team.Name,
 		}
 	}
-	g.SendMsg(api.ApiAvatarDataNotify, userId, g.getHeadMsg(2), avatarDataNotify)
+	g.SendMsg(api.ApiAvatarDataNotify, userId, nil, avatarDataNotify)
+
+	player.BornInScene = false
 
 	// PacketPlayerEnterSceneNotify
-	player.EnterSceneToken = uint32(random.GetRandomInt32(1000, 99999))
-	playerEnterSceneNotify := new(proto.PlayerEnterSceneNotify)
-	playerEnterSceneNotify.SceneId = player.SceneId
-	playerEnterSceneNotify.Pos = &proto.Vector{X: float32(player.Pos.X), Y: float32(player.Pos.Y), Z: float32(player.Pos.Z)}
-	playerEnterSceneNotify.SceneBeginTime = uint64(time.Now().UnixMilli())
-	playerEnterSceneNotify.Type = proto.EnterType_ENTER_TYPE_SELF
-	playerEnterSceneNotify.TargetUid = player.PlayerID
-	playerEnterSceneNotify.EnterSceneToken = player.EnterSceneToken
-	playerEnterSceneNotify.WorldLevel = player.Properties[playerPropertyConst.PROP_PLAYER_WORLD_LEVEL]
-	enterReasonConst := constant.GetEnterReasonConst()
-	playerEnterSceneNotify.EnterReason = uint32(enterReasonConst.Login)
-	// TODO 刚登录进入场景的时候才为true
-	playerEnterSceneNotify.IsFirstLoginEnterScene = true
-	playerEnterSceneNotify.WorldType = 1
-	playerEnterSceneNotify.SceneTransaction = "3-" + strconv.FormatInt(int64(player.PlayerID), 10) + "-" + strconv.FormatInt(time.Now().Unix(), 10) + "-" + "18402"
+	playerEnterSceneNotify := g.PacketPlayerEnterSceneNotify(player)
 	g.SendMsg(api.ApiPlayerEnterSceneNotify, userId, nil, playerEnterSceneNotify)
 
 	//g.userManager.UpdateUser(player)
@@ -273,6 +198,146 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 	g.SendMsg(api.ApiOpenStateUpdateNotify, userId, nil, openStateUpdateNotify)
 }
 
+func (g *GameManager) SetPlayerBornDataReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+	logger.LOG.Debug("user set born data, user id: %v", userId)
+	if headMsg != nil {
+		logger.LOG.Debug("client sequence id: %v", headMsg.ClientSequenceId)
+	}
+	if payloadMsg == nil {
+		return
+	}
+	req := payloadMsg.(*proto.SetPlayerBornDataReq)
+	logger.LOG.Debug("avatar id: %v, nickname: %v", req.AvatarId, req.NickName)
+
+	exist, asyncWait := g.userManager.CheckUserExistOnReg(userId, req)
+	if !asyncWait {
+		g.PlayerReg(exist, req, userId)
+	}
+}
+
+func (g *GameManager) PlayerReg(exist bool, req *proto.SetPlayerBornDataReq, userId uint32) {
+	if exist {
+		logger.LOG.Error("recv set born data req, but user is already exist, userId: %v", userId)
+		return
+	}
+
+	mainCharAvatarId := req.GetAvatarId()
+	if mainCharAvatarId != 10000005 && mainCharAvatarId != 10000007 {
+		logger.LOG.Error("invalid main char avatar id: %v", mainCharAvatarId)
+		return
+	}
+
+	player := new(model.Player)
+	player.PlayerID = userId
+	player.NickName = req.NickName
+	player.Signature = "惟愿时光记忆，一路繁花千树。"
+	player.HeadImage = mainCharAvatarId
+	player.NameCard = 210001
+	player.NameCardList = make([]uint32, 0)
+	player.NameCardList = append(player.NameCardList, 210001, 210042)
+
+	player.FriendList = make([]uint32, 0)
+	player.FriendApplyList = make([]uint32, 0)
+
+	player.RegionId = 1
+	player.SceneId = 3
+
+	player.Properties = make(map[uint16]uint32)
+	playerPropertyConst := constant.GetPlayerPropertyConst()
+	// 初始化所有属性
+	propList := reflection.ConvStructToMap(playerPropertyConst)
+	for fieldName, fieldValue := range propList {
+		if fieldName == "PROP_EXP" ||
+			fieldName == "PROP_BREAK_LEVEL" ||
+			fieldName == "PROP_SATIATION_VAL" ||
+			fieldName == "PROP_SATIATION_PENALTY_TIME" ||
+			fieldName == "PROP_LEVEL" {
+			continue
+		}
+		value := fieldValue.(uint16)
+		player.Properties[value] = 0
+	}
+	player.Properties[playerPropertyConst.PROP_PLAYER_LEVEL] = 1
+	player.Properties[playerPropertyConst.PROP_PLAYER_WORLD_LEVEL] = 0
+	player.Properties[playerPropertyConst.PROP_IS_SPRING_AUTO_USE] = 1
+	player.Properties[playerPropertyConst.PROP_SPRING_AUTO_USE_PERCENT] = 100
+	player.Properties[playerPropertyConst.PROP_IS_FLYABLE] = 1
+	player.Properties[playerPropertyConst.PROP_IS_TRANSFERABLE] = 1
+	player.Properties[playerPropertyConst.PROP_MAX_STAMINA] = 24000
+	player.Properties[playerPropertyConst.PROP_CUR_PERSIST_STAMINA] = 24000
+	player.Properties[playerPropertyConst.PROP_PLAYER_RESIN] = 160
+
+	player.FlyCloakList = make([]uint32, 0)
+	player.FlyCloakList = append(player.FlyCloakList, 140001)
+
+	player.CostumeList = make([]uint32, 0)
+
+	player.Pos = &model.Vector{X: 2747, Y: 194, Z: -1719}
+	player.Rot = &model.Vector{X: 0, Y: 307, Z: 0}
+
+	player.MpSetting = proto.MpSettingType_MP_SETTING_TYPE_ENTER_AFTER_APPLY
+
+	player.ItemMap = make(map[uint32]*model.Item)
+	player.WeaponMap = make(map[uint64]*model.Weapon)
+	player.ReliquaryMap = make(map[uint64]*model.Reliquary)
+	player.AvatarMap = make(map[uint32]*model.Avatar)
+
+	player.GameObjectGuidMap = make(map[uint64]model.GameObject)
+
+	// 选哥哥的福报
+	if mainCharAvatarId == 10000005 {
+		// 添加所有角色
+		allAvatarDataConfig := g.GetAllAvatarDataConfig()
+		for avatarId, avatarDataConfig := range allAvatarDataConfig {
+			player.AddAvatar(uint32(avatarId))
+			// 添加初始武器
+			weaponId := uint64(g.snowflake.GenId())
+			player.AddWeapon(uint32(avatarDataConfig.InitialWeapon), weaponId)
+			// 角色装上初始武器
+			player.WearWeapon(uint32(avatarId), weaponId)
+		}
+		// 添加所有武器
+		allWeaponDataConfig := g.GetAllWeaponDataConfig()
+		for itemId := range allWeaponDataConfig {
+			weaponId := uint64(g.snowflake.GenId())
+			player.AddWeapon(uint32(itemId), weaponId)
+		}
+		// 添加所有道具
+		allItemDataConfig := g.GetAllItemDataConfig()
+		for itemId := range allItemDataConfig {
+			player.AddItem(uint32(itemId), 1)
+		}
+	}
+
+	// 添加选定的主角
+	player.AddAvatar(mainCharAvatarId)
+	// 添加初始武器
+	avatarDataConfig := gdc.CONF.AvatarDataMap[int32(mainCharAvatarId)]
+	weaponId := uint64(g.snowflake.GenId())
+	player.AddWeapon(uint32(avatarDataConfig.InitialWeapon), weaponId)
+	// 角色装上初始武器
+	player.WearWeapon(mainCharAvatarId, weaponId)
+
+	player.TeamConfig = model.NewTeamInfo()
+	player.TeamConfig.AddAvatarToTeam(mainCharAvatarId, 0)
+
+	player.DropInfo = model.NewDropInfo()
+
+	g.userManager.AddUser(player)
+
+	g.SendMsg(api.ApiSetPlayerBornDataRsp, userId, nil, new(proto.NullMsg))
+	g.OnLogin(userId)
+}
+
+func (g *GameManager) PlayerForceExitReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+	// 告诉网关断开玩家的连接
+	g.SendMsg(api.ApiPlayerForceExitRsp, userId, nil, new(proto.NullMsg))
+	go func() {
+		time.Sleep(time.Second)
+		g.KickPlayer(userId)
+	}()
+}
+
 func (g *GameManager) OnUserOffline(userId uint32) {
 	logger.LOG.Info("user offline, user id: %v", userId)
 	player := g.userManager.GetOnlineUser(userId)
@@ -281,12 +346,10 @@ func (g *GameManager) OnUserOffline(userId uint32) {
 		return
 	}
 	world := g.worldManager.GetWorldByID(player.WorldId)
-	scene := world.GetSceneById(player.SceneId)
-	scene.RemovePlayer(player)
-	world.RemovePlayer(player)
-	if world.owner.PlayerID == player.PlayerID {
-		// 房主离线清空所有玩家并销毁世界
-		g.worldManager.DestroyWorld(player.WorldId)
+	if world != nil {
+		g.UserWorldRemovePlayer(world, player)
 	}
+	player.OfflineTime = uint32(time.Now().Unix())
+	player.Online = false
 	g.userManager.OfflineUser(player)
 }

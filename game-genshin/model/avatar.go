@@ -31,7 +31,7 @@ type Avatar struct {
 	NameCardRewardId    uint32             `bson:"nameCardRewardId"`
 	NameCardId          uint32             `bson:"nameCardId"`
 	Guid                uint64             `bson:"-"`
-	EquipGuidList       []uint64           `bson:"-"`
+	EquipGuidList       map[uint64]uint64  `bson:"-"`
 	EquipWeapon         *Weapon            `bson:"-"`
 	EquipReliquaryList  []*Reliquary       `bson:"-"`
 	FightPropMap        map[uint32]float32 `bson:"-"`
@@ -39,12 +39,12 @@ type Avatar struct {
 }
 
 func (p *Player) InitAllAvatar() {
-	for avatarId, avatar := range p.AvatarMap {
-		p.AvatarMap[avatarId] = p.InitAvatar(avatar)
+	for _, avatar := range p.AvatarMap {
+		p.InitAvatar(avatar)
 	}
 }
 
-func (p *Player) InitAvatar(avatar *Avatar) *Avatar {
+func (p *Player) InitAvatar(avatar *Avatar) {
 	avatarDataConfig := gdc.CONF.AvatarDataMap[int32(avatar.AvatarId)]
 	// 角色战斗属性
 	fightPropertyConst := constant.GetFightPropertyConst()
@@ -68,7 +68,10 @@ func (p *Player) InitAvatar(avatar *Avatar) *Avatar {
 	p.SetCurrEnergy(avatar, avatar.CurrEnergy, true)
 	// guid
 	avatar.Guid = p.GetNextGameObjectGuid()
-	return avatar
+	p.GameObjectGuidMap[avatar.Guid] = GameObject(avatar)
+	avatar.EquipGuidList = make(map[uint64]uint64)
+	p.AvatarMap[avatar.AvatarId] = avatar
+	return
 }
 
 func (p *Player) AddAvatar(avatarId uint32) {
@@ -152,4 +155,20 @@ func (p *Player) SetCurrEnergy(avatar *Avatar, value float64, max bool) {
 	} else {
 		avatar.FightPropMap[uint32(element.CurrEnergyProp)] = float32(value)
 	}
+}
+
+func (p *Player) WearWeapon(avatarId uint32, weaponId uint64) {
+	avatar := p.AvatarMap[avatarId]
+	weapon := p.WeaponMap[weaponId]
+	avatar.EquipWeapon = weapon
+	weapon.AvatarId = avatarId
+	avatar.EquipGuidList[weapon.Guid] = weapon.Guid
+}
+
+func (p *Player) TakeOffWeapon(avatarId uint32, weaponId uint64) {
+	avatar := p.AvatarMap[avatarId]
+	weapon := p.WeaponMap[weaponId]
+	avatar.EquipWeapon = nil
+	weapon.AvatarId = 0
+	delete(avatar.EquipGuidList, weapon.Guid)
 }

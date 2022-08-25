@@ -30,7 +30,7 @@ func (w *WorldManager) GetWorldMap() map[uint32]*World {
 	return w.worldMap
 }
 
-func (w *WorldManager) CreateWorld(owner *model.Player) *World {
+func (w *WorldManager) CreateWorld(owner *model.Player, multiplayer bool) *World {
 	worldId := uint32(w.snowflake.GenId())
 	world := &World{
 		id:              worldId,
@@ -40,7 +40,7 @@ func (w *WorldManager) CreateWorld(owner *model.Player) *World {
 		entityIdCounter: 0,
 		peerIdCounter:   0,
 		worldLevel:      0,
-		multiplayer:     false,
+		multiplayer:     multiplayer,
 		mpLevelEntityId: 0,
 	}
 	entityIdTypeConst := constant.GetEntityIdTypeConst()
@@ -86,6 +86,7 @@ func (w *World) AddPlayer(player *model.Player, sceneId uint32) {
 	scene.AddPlayer(player)
 	entityIdTypeConst := constant.GetEntityIdTypeConst()
 	player.TeamConfig.TeamEntityId = w.GetNextWorldEntityId(entityIdTypeConst.TEAM)
+	player.PeerId = w.GetNextWorldPeerId()
 }
 
 func (w *World) RemovePlayer(player *model.Player) {
@@ -96,12 +97,13 @@ func (w *World) RemovePlayer(player *model.Player) {
 
 func (w *World) CreateScene(sceneId uint32) *Scene {
 	scene := &Scene{
-		id:          sceneId,
-		world:       w,
-		playerMap:   make(map[uint32]*model.Player),
-		entityMap:   make(map[uint32]*Entity),
-		time:        0,
-		attackQueue: alg.NewQueue(),
+		id:                  sceneId,
+		world:               w,
+		playerMap:           make(map[uint32]*model.Player),
+		entityMap:           make(map[uint32]*Entity),
+		playerTeamEntityMap: make(map[uint32]*PlayerTeamEntity),
+		time:                18 * 60,
+		attackQueue:         alg.NewQueue(),
 	}
 	w.sceneMap[sceneId] = scene
 	return scene
@@ -120,13 +122,49 @@ type Attack struct {
 	uid               uint32
 }
 
+type PlayerTeamEntity struct {
+	avatarEntityMap map[uint32]uint32
+	weaponEntityMap map[uint64]uint32
+}
+
 type Scene struct {
-	id          uint32
-	world       *World
-	playerMap   map[uint32]*model.Player
-	entityMap   map[uint32]*Entity
-	time        int64
-	attackQueue *alg.Queue
+	id                  uint32
+	world               *World
+	playerMap           map[uint32]*model.Player
+	entityMap           map[uint32]*Entity
+	playerTeamEntityMap map[uint32]*PlayerTeamEntity
+	time                uint32
+	attackQueue         *alg.Queue
+}
+
+func (s *Scene) ChangeTime(time uint32) {
+	s.time = time % 1440
+}
+
+func (s *Scene) GetPlayerTeamEntity(userId uint32) *PlayerTeamEntity {
+	return s.playerTeamEntityMap[userId]
+}
+
+func (s *Scene) CreatePlayerTeamEntity(player *model.Player) {
+	playerTeamEntity := &PlayerTeamEntity{
+		avatarEntityMap: make(map[uint32]uint32),
+		weaponEntityMap: make(map[uint64]uint32),
+	}
+	s.playerTeamEntityMap[player.PlayerID] = playerTeamEntity
+}
+
+func (s *Scene) UpdatePlayerTeamEntity(player *model.Player) {
+	team := player.TeamConfig.GetActiveTeam()
+	entityIdTypeConst := constant.GetEntityIdTypeConst()
+	playerTeamEntity := s.playerTeamEntityMap[player.PlayerID]
+	for _, avatarId := range team.AvatarIdList {
+		if avatarId == 0 {
+			break
+		}
+		avatar := player.AvatarMap[avatarId]
+		playerTeamEntity.avatarEntityMap[avatarId] = s.CreateEntityAvatar(entityIdTypeConst.AVATAR, player, avatarId)
+		playerTeamEntity.weaponEntityMap[avatar.EquipWeapon.WeaponId] = s.CreateEntityWeapon(entityIdTypeConst.WEAPON)
+	}
 }
 
 type Entity struct {
@@ -138,32 +176,76 @@ type Entity struct {
 	lastMoveSceneTimeMs uint32
 	lastMoveReliableSeq uint32
 	fightProp           map[uint32]float32
-	player              *model.Player
+	entityType          uint32
+	uid                 uint32
+	avatarId            uint32
+	level               uint8
 }
 
 func (s *Scene) AddPlayer(player *model.Player) {
 	s.playerMap[player.PlayerID] = player
+	s.CreatePlayerTeamEntity(player)
 }
 
 func (s *Scene) RemovePlayer(player *model.Player) {
 	delete(s.playerMap, player.PlayerID)
 }
 
-func (s *Scene) CreateEntity(entityType uint16, fightProp map[uint32]float32, player *model.Player) uint32 {
-	if fightProp == nil {
-		fightProp = make(map[uint32]float32)
+func (s *Scene) CreateEntityAvatar(entityType uint16, player *model.Player, avatarId uint32) uint32 {
+	entityId := s.world.GetNextWorldEntityId(entityType)
+	entity := &Entity{
+		id:                  entityId,
+		scene:               s,
+		pos:                 player.Pos,
+		rot:                 player.Rot,
+		moveState:           uint16(proto.MotionState_MOTION_STATE_NONE),
+		lastMoveSceneTimeMs: 0,
+		lastMoveReliableSeq: 0,
+		fightProp:           player.AvatarMap[avatarId].FightPropMap,
+		entityType:          uint32(proto.ProtEntityType_PROT_ENTITY_TYPE_AVATAR),
+		uid:                 player.PlayerID,
+		avatarId:            avatarId,
+		level:               player.AvatarMap[avatarId].Level,
 	}
+	s.entityMap[entity.id] = entity
+	return entity.id
+}
+
+func (s *Scene) CreateEntityWeapon(entityType uint16) uint32 {
 	entityId := s.world.GetNextWorldEntityId(entityType)
 	entity := &Entity{
 		id:                  entityId,
 		scene:               s,
 		pos:                 new(model.Vector),
 		rot:                 new(model.Vector),
-		moveState:           0,
+		moveState:           uint16(proto.MotionState_MOTION_STATE_NONE),
+		lastMoveSceneTimeMs: 0,
+		lastMoveReliableSeq: 0,
+		fightProp:           nil,
+		entityType:          uint32(proto.ProtEntityType_PROT_ENTITY_TYPE_WEAPON),
+		uid:                 0,
+		avatarId:            0,
+		level:               0,
+	}
+	s.entityMap[entity.id] = entity
+	return entity.id
+}
+
+func (s *Scene) CreateEntityMonster(entityType uint16, pos *model.Vector, level uint8, fightProp map[uint32]float32) uint32 {
+	entityId := s.world.GetNextWorldEntityId(entityType)
+	entity := &Entity{
+		id:                  entityId,
+		scene:               s,
+		pos:                 pos,
+		rot:                 new(model.Vector),
+		moveState:           uint16(proto.MotionState_MOTION_STATE_NONE),
 		lastMoveSceneTimeMs: 0,
 		lastMoveReliableSeq: 0,
 		fightProp:           fightProp,
-		player:              player,
+		entityType:          uint32(proto.ProtEntityType_PROT_ENTITY_TYPE_MONSTER),
+		uid:                 0,
+		avatarId:            0,
+		level:               level,
 	}
 	s.entityMap[entity.id] = entity
 	return entity.id
@@ -216,25 +298,13 @@ func (s *Scene) AttackHandler(gameManager *GameManager) {
 		damage := attackResult.Damage
 		attackerId := attackResult.AttackerId
 		_ = attackerId
-		currHp := float32(0)
 		fightPropertyConst := constant.GetFightPropertyConst()
-		if target.player != nil {
-			activeAvatarId := target.player.TeamConfig.GetActiveAvatarId()
-			fightPropMap := target.player.AvatarMap[activeAvatarId].FightPropMap
-			currHp = fightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CUR_HP)]
-			currHp -= damage
-			if currHp < 0 {
-				currHp = 0
-			}
-			fightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CUR_HP)] = currHp
-		} else {
-			currHp = target.fightProp[uint32(fightPropertyConst.FIGHT_PROP_CUR_HP)]
-			currHp -= damage
-			if currHp < 0 {
-				currHp = 0
-			}
-			target.fightProp[uint32(fightPropertyConst.FIGHT_PROP_CUR_HP)] = currHp
+		currHp := target.fightProp[uint32(fightPropertyConst.FIGHT_PROP_CUR_HP)]
+		currHp -= damage
+		if currHp < 0 {
+			currHp = 0
 		}
+		target.fightProp[uint32(fightPropertyConst.FIGHT_PROP_CUR_HP)] = currHp
 
 		// PacketEntityFightPropUpdateNotify
 		entityFightPropUpdateNotify := new(proto.EntityFightPropUpdateNotify)

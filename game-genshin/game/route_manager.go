@@ -59,6 +59,23 @@ func (r *RouteManager) InitRoute() {
 	r.registerRouter(api.ApiAbilityInvocationsNotify, r.gameManager.AbilityInvocationsNotify)           // 技能使用通知
 	r.registerRouter(api.ApiClientAbilityInitFinishNotify, r.gameManager.ClientAbilityInitFinishNotify) // 客户端技能初始化完成通知
 	r.registerRouter(api.ApiEntityAiSyncNotify, r.gameManager.EntityAiSyncNotify)                       // 实体AI怪物同步通知
+	r.registerRouter(api.ApiWearEquipReq, r.gameManager.WearEquipReq)                                   // 装备穿戴请求
+	r.registerRouter(api.ApiChangeGameTimeReq, r.gameManager.ChangeGameTimeReq)                         // 改变游戏场景时间请求
+	r.registerRouter(api.ApiSetPlayerBirthdayReq, r.gameManager.SetPlayerBirthdayReq)                   // 设置生日请求
+	r.registerRouter(api.ApiSetNameCardReq, r.gameManager.SetNameCardReq)                               // 修改名片请求
+	r.registerRouter(api.ApiSetPlayerSignatureReq, r.gameManager.SetPlayerSignatureReq)                 // 修改签名请求
+	r.registerRouter(api.ApiSetPlayerNameReq, r.gameManager.SetPlayerNameReq)                           // 修改昵称请求
+	r.registerRouter(api.ApiSetPlayerHeadImageReq, r.gameManager.SetPlayerHeadImageReq)                 // 修改头像请求
+	r.registerRouter(api.ApiGetAllUnlockNameCardReq, r.gameManager.GetAllUnlockNameCardReq)             // 获取全部已解锁名片请求
+	r.registerRouter(api.ApiGetPlayerFriendListReq, r.gameManager.GetPlayerFriendListReq)               // 好友列表请求
+	r.registerRouter(api.ApiGetPlayerAskFriendListReq, r.gameManager.GetPlayerAskFriendListReq)         // 好友申请列表请求
+	r.registerRouter(api.ApiAskAddFriendReq, r.gameManager.AskAddFriendReq)                             // 加好友请求
+	r.registerRouter(api.ApiDealAddFriendReq, r.gameManager.DealAddFriendReq)                           // 处理好友申请请求
+	r.registerRouter(api.ApiGetOnlinePlayerListReq, r.gameManager.GetOnlinePlayerListReq)               // 在线玩家列表请求
+	r.registerRouter(api.ApiPlayerForceExitReq, r.gameManager.PlayerForceExitReq)                       // 退出游戏请求
+	r.registerRouter(api.ApiPlayerApplyEnterMpReq, r.gameManager.PlayerApplyEnterMpReq)                 // 世界敲门请求
+	r.registerRouter(api.ApiPlayerApplyEnterMpResultReq, r.gameManager.PlayerApplyEnterMpResultReq)     // 世界敲门处理请求
+	r.registerRouter(api.ApiPlayerGetForceQuitBanInfoReq, r.gameManager.PlayerGetForceQuitBanInfoReq)   // 退出世界请求
 }
 
 func (r *RouteManager) RouteHandle(netMsg *api.NetMsg) {

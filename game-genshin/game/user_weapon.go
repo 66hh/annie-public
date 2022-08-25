@@ -38,11 +38,11 @@ func (g *GameManager) GetAllWeaponDataConfig() map[int32]*gdc.ItemData {
 	return allWeaponDataConfig
 }
 
-func (g *GameManager) AddUserWeapon(userId uint32, itemId uint32) {
+func (g *GameManager) AddUserWeapon(userId uint32, itemId uint32) uint64 {
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
+		return 0
 	}
 	weaponId := uint64(g.snowflake.GenId())
 	player.AddWeapon(itemId, weaponId)
@@ -75,13 +75,5 @@ func (g *GameManager) AddUserWeapon(userId uint32, itemId uint32) {
 	}
 	storeItemChangeNotify.ItemList = append(storeItemChangeNotify.ItemList, pbItem)
 	g.SendMsg(api.ApiStoreItemChangeNotify, userId, nil, storeItemChangeNotify)
-}
-
-func (g *GameManager) EquipUserWeaponToAvatar(userId uint32, avatarId uint32, weaponId uint64) {
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.EquipWeaponToAvatar(avatarId, weaponId)
+	return weaponId
 }

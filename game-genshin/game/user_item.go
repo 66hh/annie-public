@@ -108,7 +108,7 @@ func (g *GameManager) AddUserItem(userId uint32, itemList []*UserItem, isHint bo
 		}
 	}
 	if len(playerPropNotify.PropMap) > 0 {
-		g.SendMsg(api.ApiPlayerPropNotify, userId, g.getHeadMsg(0), playerPropNotify)
+		g.SendMsg(api.ApiPlayerPropNotify, userId, nil, playerPropNotify)
 	}
 }
 
@@ -176,6 +176,6 @@ func (g *GameManager) CostUserItem(userId uint32, itemList []*UserItem) {
 		}
 	}
 	if len(playerPropNotify.PropMap) > 0 {
-		g.SendMsg(api.ApiPlayerPropNotify, userId, g.getHeadMsg(0), playerPropNotify)
+		g.SendMsg(api.ApiPlayerPropNotify, userId, nil, playerPropNotify)
 	}
 }

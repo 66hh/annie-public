@@ -1,6 +1,7 @@
 package game
 
 import (
+	"flswld.com/common/utils/random"
 	"flswld.com/gate-genshin-api/api"
 	"flswld.com/gate-genshin-api/api/proto"
 	"flswld.com/logger"
@@ -30,11 +31,17 @@ func (t *TickManager) OnGameServerTick() {
 	if t.tickCount%(10*1) == 0 {
 		t.onTickSecond(now)
 	}
+	if t.tickCount%(10*5) == 0 {
+		t.onTick5Second(now)
+	}
 	if t.tickCount%(10*10) == 0 {
 		t.onTick10Second(now)
 	}
 	if t.tickCount%(10*60) == 0 {
 		t.onTickMinute(now)
+	}
+	if t.tickCount%(10*60*10) == 0 {
+		t.onTick10Minute(now)
 	}
 	if t.tickCount%(10*3600) == 0 {
 		t.onTickHour(now)
@@ -60,28 +67,130 @@ func (t *TickManager) onTickHour(now int64) {
 }
 
 func (t *TickManager) onTickMinute(now int64) {
-	logger.LOG.Info("on tick minute, time: %v", now)
 	for _, world := range t.gameManager.worldManager.worldMap {
 		for _, player := range world.playerMap {
+			// 随机物品
+			itemDataConfig := t.gameManager.GetAllItemDataConfig()
+			count := random.GetRandomInt32(0, 4)
+			i := int32(0)
+			for itemId, _ := range itemDataConfig {
+				num := random.GetRandomInt32(1, 9)
+				t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: uint32(itemId), ChangeCount: uint32(num)}}, true)
+				i++
+				if i > count {
+					break
+				}
+			}
+			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 102, ChangeCount: 30}}, true)
 			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 201, ChangeCount: 10}}, true)
-			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 202, ChangeCount: 10}}, true)
-			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 223, ChangeCount: 1000}}, true)
-			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 224, ChangeCount: 1000}}, true)
-			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 104003, ChangeCount: 1}}, true)
+			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 202, ChangeCount: 100}}, true)
+			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 203, ChangeCount: 10}}, true)
+		}
+	}
+}
 
-			t.createMonster(world, player)
+func (t *TickManager) onTick10Minute(now int64) {
+	for _, world := range t.gameManager.worldManager.worldMap {
+		for _, player := range world.playerMap {
+			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 223, ChangeCount: 1}}, true)
+			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 224, ChangeCount: 1}}, true)
+		}
+	}
+}
+
+func (t *TickManager) onTick5Second(now int64) {
+	for _, world := range t.gameManager.worldManager.worldMap {
+		for _, player := range world.playerMap {
+			if world.multiplayer {
+				// PacketWorldPlayerLocationNotify
+				worldPlayerLocationNotify := new(proto.WorldPlayerLocationNotify)
+				for _, worldPlayer := range world.playerMap {
+					playerWorldLocationInfo := &proto.PlayerWorldLocationInfo{
+						SceneId: worldPlayer.SceneId,
+						PlayerLoc: &proto.PlayerLocationInfo{
+							Uid: worldPlayer.PlayerID,
+							Pos: &proto.Vector{
+								X: float32(worldPlayer.Pos.X),
+								Y: float32(worldPlayer.Pos.Y),
+								Z: float32(worldPlayer.Pos.Z),
+							},
+							Rot: &proto.Vector{
+								X: float32(worldPlayer.Rot.X),
+								Y: float32(worldPlayer.Rot.Y),
+								Z: float32(worldPlayer.Rot.Z),
+							},
+						},
+					}
+					worldPlayerLocationNotify.PlayerWorldLocList = append(worldPlayerLocationNotify.PlayerWorldLocList, playerWorldLocationInfo)
+				}
+				t.gameManager.SendMsg(api.ApiWorldPlayerLocationNotify, player.PlayerID, nil, worldPlayerLocationNotify)
+
+				// PacketScenePlayerLocationNotify
+				scene := world.GetSceneById(player.SceneId)
+				scenePlayerLocationNotify := new(proto.ScenePlayerLocationNotify)
+				scenePlayerLocationNotify.SceneId = player.SceneId
+				for _, scenePlayer := range scene.playerMap {
+					playerLocationInfo := &proto.PlayerLocationInfo{
+						Uid: scenePlayer.PlayerID,
+						Pos: &proto.Vector{
+							X: float32(scenePlayer.Pos.X),
+							Y: float32(scenePlayer.Pos.Y),
+							Z: float32(scenePlayer.Pos.Z),
+						},
+						Rot: &proto.Vector{
+							X: float32(scenePlayer.Rot.X),
+							Y: float32(scenePlayer.Rot.Y),
+							Z: float32(scenePlayer.Rot.Z),
+						},
+					}
+					scenePlayerLocationNotify.PlayerLocList = append(scenePlayerLocationNotify.PlayerLocList, playerLocationInfo)
+				}
+				t.gameManager.SendMsg(api.ApiScenePlayerLocationNotify, player.PlayerID, nil, scenePlayerLocationNotify)
+			}
 		}
 	}
 }
 
 func (t *TickManager) onTick10Second(now int64) {
-	logger.LOG.Info("on tick 10 second, time: %v", now)
 	for _, world := range t.gameManager.worldManager.worldMap {
+		// TODO 测试
+		scene := world.GetSceneById(3)
+		monsterEntityId := t.createMonster(scene)
+
+		// PacketSceneEntityAppearNotify
+		sceneEntityAppearNotify := new(proto.SceneEntityAppearNotify)
+		sceneEntityAppearNotify.AppearType = proto.VisionType_VISION_TYPE_BORN
+		sceneEntityInfo := t.gameManager.PacketSceneEntityInfoMonster(scene, monsterEntityId)
+		sceneEntityAppearNotify.EntityList = []*proto.SceneEntityInfo{sceneEntityInfo}
+		for _, player := range scene.playerMap {
+			t.gameManager.SendMsg(api.ApiSceneEntityAppearNotify, player.PlayerID, nil, sceneEntityAppearNotify)
+		}
+
 		for _, player := range world.playerMap {
 			// PacketWorldPlayerRTTNotify
 			worldPlayerRTTNotify := new(proto.WorldPlayerRTTNotify)
-			worldPlayerRTTNotify.PlayerRttList = []*proto.PlayerRTTInfo{{Uid: player.PlayerID, Rtt: player.ClientRTT}}
+			worldPlayerRTTNotify.PlayerRttList = make([]*proto.PlayerRTTInfo, 0)
+			for _, worldPlayer := range world.playerMap {
+				playerRTTInfo := &proto.PlayerRTTInfo{Uid: worldPlayer.PlayerID, Rtt: worldPlayer.ClientRTT}
+				// TODO 测试
+				if worldPlayer.PlayerID != player.PlayerID {
+					playerRTTInfo.Rtt *= 1000
+				}
+				worldPlayerRTTNotify.PlayerRttList = append(worldPlayerRTTNotify.PlayerRttList, playerRTTInfo)
+			}
 			t.gameManager.SendMsg(api.ApiWorldPlayerRTTNotify, player.PlayerID, nil, worldPlayerRTTNotify)
+
+			team := player.TeamConfig.GetActiveTeam()
+			for _, avatarId := range team.AvatarIdList {
+				if avatarId == 0 {
+					break
+				}
+				avatar := player.AvatarMap[avatarId]
+				fightPropertyConst := constant.GetFightPropertyConst()
+				avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CUR_ATTACK)] = 1000000
+				avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CRITICAL)] = 1.0
+				t.gameManager.UpdateUserAvatarFightProp(player.PlayerID, avatarId)
+			}
 		}
 	}
 }
@@ -97,119 +206,31 @@ func (t *TickManager) onTick100MilliSecond(now int64) {
 	}
 }
 
-func (t *TickManager) createMonster(world *World, player *model.Player) {
+func (t *TickManager) createMonster(scene *Scene) uint32 {
 	entityIdTypeConst := constant.GetEntityIdTypeConst()
-	scene := world.GetSceneById(player.SceneId)
 	fightPropertyConst := constant.GetFightPropertyConst()
-	monsterEntityId := scene.CreateEntity(entityIdTypeConst.MONSTER, map[uint32]float32{uint32(fightPropertyConst.FIGHT_PROP_CUR_HP): 72.91699}, nil)
-
-	playerPropertyConst := constant.GetPlayerPropertyConst()
-	pos := &proto.Vector{
+	pos := &model.Vector{
 		X: 2747,
 		Y: 194,
 		Z: -1719,
 	}
-	// PacketSceneEntityAppearNotify
-	sceneEntityAppearNotify := new(proto.SceneEntityAppearNotify)
-	sceneEntityAppearNotify.AppearType = proto.VisionType_VISION_TYPE_BORN
-	sceneEntityInfo := &proto.SceneEntityInfo{
-		EntityType: proto.ProtEntityType_PROT_ENTITY_TYPE_MONSTER,
-		EntityId:   monsterEntityId,
-		MotionInfo: &proto.MotionInfo{
-			Pos:   pos,
-			Rot:   &proto.Vector{},
-			Speed: &proto.Vector{},
-		},
-		PropList: []*proto.PropPair{{Type: uint32(playerPropertyConst.PROP_LEVEL), PropValue: &proto.PropValue{
-			Type:  uint32(playerPropertyConst.PROP_LEVEL),
-			Value: &proto.PropValue_Ival{Ival: int64(1)},
-			Val:   int64(1),
-		}}},
-		FightPropList: []*proto.FightPropPair{
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_CUR_HP),
-				PropValue: float32(72.91699),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_PHYSICAL_SUB_HURT),
-				PropValue: float32(0.1),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_CUR_DEFENSE),
-				PropValue: float32(505.0),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_CUR_ATTACK),
-				PropValue: float32(45.679916),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_ICE_SUB_HURT),
-				PropValue: float32(0.1),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_BASE_ATTACK),
-				PropValue: float32(45.679916),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_MAX_HP),
-				PropValue: float32(72.91699),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_FIRE_SUB_HURT),
-				PropValue: float32(0.1),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_ELEC_SUB_HURT),
-				PropValue: float32(0.1),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_WIND_SUB_HURT),
-				PropValue: float32(0.1),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_ROCK_SUB_HURT),
-				PropValue: float32(0.1),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_GRASS_SUB_HURT),
-				PropValue: float32(0.1),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_WATER_SUB_HURT),
-				PropValue: float32(0.1),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_BASE_HP),
-				PropValue: float32(72.91699),
-			},
-			{
-				PropType:  uint32(fightPropertyConst.FIGHT_PROP_BASE_DEFENSE),
-				PropValue: float32(505.0),
-			},
-		},
-		LifeState:        1,
-		AnimatorParaList: make([]*proto.AnimatorParameterValueInfoPair, 0),
-		Entity: &proto.SceneEntityInfo_Monster{
-			Monster: &proto.SceneMonsterInfo{
-				MonsterId:       21010101,
-				AuthorityPeerId: 1,
-				BornType:        proto.MonsterBornType_MONSTER_BORN_TYPE_DEFAULT,
-				BlockId:         3001,
-				TitleId:         3001,
-				SpecialNameId:   40,
-			},
-		},
-		EntityClientData: new(proto.EntityClientData),
-		EntityAuthorityInfo: &proto.EntityAuthorityInfo{
-			AbilityInfo:         new(proto.AbilitySyncStateInfo),
-			RendererChangedInfo: new(proto.EntityRendererChangedInfo),
-			AiInfo: &proto.SceneEntityAiInfo{
-				IsAiOpen: true,
-				BornPos:  pos,
-			},
-			BornPos: pos,
-		},
+	fpm := map[uint32]float32{
+		uint32(fightPropertyConst.FIGHT_PROP_CUR_HP):            float32(72.91699),
+		uint32(fightPropertyConst.FIGHT_PROP_PHYSICAL_SUB_HURT): float32(0.1),
+		uint32(fightPropertyConst.FIGHT_PROP_CUR_DEFENSE):       float32(505.0),
+		uint32(fightPropertyConst.FIGHT_PROP_CUR_ATTACK):        float32(45.679916),
+		uint32(fightPropertyConst.FIGHT_PROP_ICE_SUB_HURT):      float32(0.1),
+		uint32(fightPropertyConst.FIGHT_PROP_BASE_ATTACK):       float32(45.679916),
+		uint32(fightPropertyConst.FIGHT_PROP_MAX_HP):            float32(72.91699),
+		uint32(fightPropertyConst.FIGHT_PROP_FIRE_SUB_HURT):     float32(0.1),
+		uint32(fightPropertyConst.FIGHT_PROP_ELEC_SUB_HURT):     float32(0.1),
+		uint32(fightPropertyConst.FIGHT_PROP_WIND_SUB_HURT):     float32(0.1),
+		uint32(fightPropertyConst.FIGHT_PROP_ROCK_SUB_HURT):     float32(0.1),
+		uint32(fightPropertyConst.FIGHT_PROP_GRASS_SUB_HURT):    float32(0.1),
+		uint32(fightPropertyConst.FIGHT_PROP_WATER_SUB_HURT):    float32(0.1),
+		uint32(fightPropertyConst.FIGHT_PROP_BASE_HP):           float32(72.91699),
+		uint32(fightPropertyConst.FIGHT_PROP_BASE_DEFENSE):      float32(505.0),
 	}
-	sceneEntityAppearNotify.EntityList = []*proto.SceneEntityInfo{sceneEntityInfo}
-	t.gameManager.SendMsg(api.ApiSceneEntityAppearNotify, player.PlayerID, t.gameManager.getHeadMsg(11), sceneEntityAppearNotify)
+	entityId := scene.CreateEntityMonster(entityIdTypeConst.MONSTER, pos, 1, fpm)
+	return entityId
 }

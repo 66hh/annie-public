@@ -30,6 +30,7 @@ const (
 	KcpConnCloseNotify
 	KcpConnEstNotify
 	KcpConnRttNotify
+	KcpConnAddrChangeNotify
 )
 
 type KcpEvent struct {
@@ -58,6 +59,9 @@ type KcpConnectManager struct {
 	secretKey     []byte
 	kcpKeyMap     map[uint64]*KcpXorKey
 	kcpKeyMapLock sync.RWMutex
+	// conv短时间内唯一生成
+	convGenMap     map[uint64]int64
+	convGenMapLock sync.RWMutex
 }
 
 func NewKcpConnectManager(kcpEventInput chan *KcpEvent, kcpEventOutput chan *KcpEvent, kcpMsgInput chan *KcpMsg, kcpMsgOutput chan *KcpMsg) (r *KcpConnectManager) {
@@ -72,6 +76,7 @@ func NewKcpConnectManager(kcpEventInput chan *KcpEvent, kcpEventOutput chan *Kcp
 	r.kcpRecvListenMap = make(map[uint64]bool)
 	r.kcpSendListenMap = make(map[uint64]bool)
 	r.kcpKeyMap = make(map[uint64]*KcpXorKey)
+	r.convGenMap = make(map[uint64]int64)
 	return r
 }
 
@@ -138,6 +143,34 @@ func (k *KcpConnectManager) Start() {
 			}
 		}
 	}()
+	go k.ClearDeadConv()
+}
+
+func (k *KcpConnectManager) ClearDeadConv() {
+	ticker := time.NewTicker(time.Minute)
+	for {
+		k.convGenMapLock.Lock()
+		now := time.Now().UnixNano()
+		oldConvList := make([]uint64, 0)
+		for conv, timestamp := range k.convGenMap {
+			if now-timestamp > int64(time.Hour) {
+				oldConvList = append(oldConvList, conv)
+			}
+		}
+		delConvList := make([]uint64, 0)
+		k.connMapLock.RLock()
+		for _, conv := range oldConvList {
+			_, exist := k.connMap[conv]
+			if !exist {
+				delConvList = append(delConvList, conv)
+				delete(k.convGenMap, conv)
+			}
+		}
+		k.connMapLock.RUnlock()
+		k.convGenMapLock.Unlock()
+		logger.LOG.Info("clean dead conv list: %v", delConvList)
+		<-ticker.C
+	}
 }
 
 func (k *KcpConnectManager) enetHandle(listener *kcp.Listener) {
@@ -147,10 +180,21 @@ func (k *KcpConnectManager) enetHandle(listener *kcp.Listener) {
 		switch enetNotify.ConnType {
 		case kcp.ConnEnetSyn:
 			if enetNotify.EnetType == kcp.EnetClientConnectKey {
-				convData := random.GetRandomByte(8)
-				convDataBuffer := bytes.NewBuffer(convData)
 				var conv uint64
-				_ = binary.Read(convDataBuffer, binary.BigEndian, &conv)
+				k.convGenMapLock.Lock()
+				for {
+					convData := random.GetRandomByte(8)
+					convDataBuffer := bytes.NewBuffer(convData)
+					_ = binary.Read(convDataBuffer, binary.LittleEndian, &conv)
+					_, exist := k.convGenMap[conv]
+					if exist {
+						continue
+					} else {
+						k.convGenMap[conv] = time.Now().UnixNano()
+						break
+					}
+				}
+				k.convGenMapLock.Unlock()
 				listener.SendEnetNotifyToClient(&kcp.Enet{
 					Addr:     enetNotify.Addr,
 					ConvId:   conv,
@@ -161,6 +205,13 @@ func (k *KcpConnectManager) enetHandle(listener *kcp.Listener) {
 		case kcp.ConnEnetEst:
 		case kcp.ConnEnetFin:
 			k.closeKcpConn(enetNotify.ConvId, enetNotify.EnetType)
+		case kcp.ConnEnetAddrChange:
+			// 连接地址改变通知
+			k.kcpEventOutput <- &KcpEvent{
+				ConvId:       enetNotify.ConvId,
+				EventId:      KcpConnAddrChangeNotify,
+				EventMessage: enetNotify.Addr,
+			}
 		default:
 		}
 	}
@@ -190,6 +241,8 @@ func (k *KcpConnectManager) recvHandle(convId uint64) {
 	k.connMapLock.RLock()
 	conn := k.connMap[convId]
 	k.connMapLock.RUnlock()
+	pktFreqLimitCounter := 0
+	pktFreqLimitTimer := time.Now().UnixNano()
 	for {
 		recvBuf := make([]byte, 384000)
 		_ = conn.SetReadDeadline(time.Now().Add(time.Second * 30))
@@ -198,6 +251,18 @@ func (k *KcpConnectManager) recvHandle(convId uint64) {
 			logger.LOG.Error("exit recv loop, conn read err: %v, convId: %v", err, convId)
 			k.closeKcpConn(convId, kcp.EnetServerKick)
 			break
+		}
+		pktFreqLimitCounter++
+		now := time.Now().UnixNano()
+		if now-pktFreqLimitTimer > int64(time.Second) {
+			if pktFreqLimitCounter > 300 {
+				logger.LOG.Error("exit recv loop, client packet send freq too high, convId: %v", convId)
+				k.closeKcpConn(convId, kcp.EnetPacketFreqTooHigh)
+				break
+			} else {
+				pktFreqLimitCounter = 0
+			}
+			pktFreqLimitTimer = now
 		}
 		recvBuf = recvBuf[:recvLen]
 		k.kcpRecvListenMapLock.RLock()
@@ -264,7 +329,7 @@ func (k *KcpConnectManager) rttMonitor(convId uint64) {
 			if conn == nil {
 				break
 			}
-			logger.LOG.Debug("convId: %v, RTO: %v, SRTT: %v, SRTTVar: %v", convId, conn.GetRTO(), conn.GetSRTT(), conn.GetSRTTVar())
+			logger.LOG.Debug("convId: %v, RTO: %v, SRTT: %v, RTTVar: %v", convId, conn.GetRTO(), conn.GetSRTT(), conn.GetSRTTVar())
 			k.kcpEventOutput <- &KcpEvent{
 				ConvId:       convId,
 				EventId:      KcpConnRttNotify,

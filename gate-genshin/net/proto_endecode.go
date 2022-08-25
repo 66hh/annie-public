@@ -65,7 +65,7 @@ func (p *ProtoEnDecode) protoDecode() {
 		}
 		// payload msg
 		isBypass := p.bypassApiMap[kcpMsg.ApiId]
-		if !isBypass && kcpMsg.ProtoData != nil && len(kcpMsg.ProtoData) != 0 {
+		if !isBypass {
 			protoMessageList := make([]*ProtoMessage, 0)
 			p.protoDecodePayloadCore(kcpMsg.ApiId, kcpMsg.ProtoData, &protoMessageList)
 			if len(protoMessageList) == 0 {
@@ -83,6 +83,7 @@ func (p *ProtoEnDecode) protoDecode() {
 						// 聚合消息自身不再往后发送
 						continue
 					}
+					//logger.LOG.Debug("[recv] proto msg, convId: %v, apiId: %v, headMsg: %v", protoMsg.ConvId, protoMsg.ApiId, protoMsg.HeadMessage)
 					p.protoMsgOutput <- msg
 				}
 				// 聚合消息自身不再往后发送

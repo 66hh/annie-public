@@ -27,16 +27,16 @@ func main() {
 
 	db := dao.NewDao()
 
-	netMsgInput := make(chan *api.NetMsg, 1000)
-	netMsgOutput := make(chan *api.NetMsg, 1000)
-
-	gameManager := game.NewGameManager(db, netMsgInput, netMsgOutput)
-	gameManager.Start()
+	netMsgInput := make(chan *api.NetMsg, 10000)
+	netMsgOutput := make(chan *api.NetMsg, 10000)
 
 	genshinGatewayConsumer := light.NewRpcConsumer("genshin-gateway")
 	rpcManager := rpc.NewRpcManager(genshinGatewayConsumer, netMsgInput, netMsgOutput)
 	gameServiceProvider := light.NewRpcProvider(rpcManager)
 	rpcManager.Start()
+
+	gameManager := game.NewGameManager(db, rpcManager, netMsgInput, netMsgOutput)
+	gameManager.Start()
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
