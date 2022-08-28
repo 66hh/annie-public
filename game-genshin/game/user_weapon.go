@@ -1,8 +1,7 @@
 package game
 
 import (
-	"flswld.com/gate-genshin-api/api"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	gdc "game-genshin/config"
 	"game-genshin/constant"
@@ -74,6 +73,6 @@ func (g *GameManager) AddUserWeapon(userId uint32, itemId uint32) uint64 {
 		},
 	}
 	storeItemChangeNotify.ItemList = append(storeItemChangeNotify.ItemList, pbItem)
-	g.SendMsg(api.ApiStoreItemChangeNotify, userId, nil, storeItemChangeNotify)
+	g.SendMsg(proto.ApiStoreItemChangeNotify, userId, nil, storeItemChangeNotify)
 	return weaponId
 }

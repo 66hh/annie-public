@@ -2,12 +2,12 @@ package game
 
 import (
 	"flswld.com/common/utils/object"
-	"flswld.com/gate-genshin-api/api"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	gdc "game-genshin/config"
 	"game-genshin/constant"
 	"game-genshin/model"
+	pb "google.golang.org/protobuf/proto"
 )
 
 func (g *GameManager) GetAllAvatarDataConfig() map[int32]*gdc.AvatarData {
@@ -49,10 +49,10 @@ func (g *GameManager) AddUserAvatar(userId uint32, avatarId uint32) {
 	avatarAddNotify := new(proto.AvatarAddNotify)
 	avatarAddNotify.Avatar = g.PacketAvatarInfo(avatar)
 	avatarAddNotify.IsInTeam = false
-	g.SendMsg(api.ApiAvatarAddNotify, userId, nil, avatarAddNotify)
+	g.SendMsg(proto.ApiAvatarAddNotify, userId, nil, avatarAddNotify)
 }
 
-func (g *GameManager) WearEquipReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) WearEquipReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user wear equip, user id: %v", userId)
 	req := payloadMsg.(*proto.WearEquipReq)
 	avatarGuid := req.AvatarGuid
@@ -70,7 +70,7 @@ func (g *GameManager) WearEquipReq(userId uint32, headMsg *api.PacketHead, paylo
 	wearEquipRsp := new(proto.WearEquipRsp)
 	wearEquipRsp.AvatarGuid = avatarGuid
 	wearEquipRsp.EquipGuid = equipGuid
-	g.SendMsg(api.ApiWearEquipRsp, userId, nil, wearEquipRsp)
+	g.SendMsg(proto.ApiWearEquipRsp, userId, nil, wearEquipRsp)
 }
 
 func (g *GameManager) WearUserAvatarEquip(userId uint32, avatarId uint32, weaponId uint64) {
@@ -113,7 +113,7 @@ func (g *GameManager) WearUserAvatarEquip(userId uint32, avatarId uint32, weapon
 
 		// PacketAvatarEquipChangeNotify
 		avatarEquipChangeNotify := g.PacketAvatarEquipChangeNotify(weakAvatar, weakWeapon, playerTeamEntity.weaponEntityMap[weakWeapon.WeaponId])
-		g.SendMsg(api.ApiAvatarEquipChangeNotify, userId, nil, avatarEquipChangeNotify)
+		g.SendMsg(proto.ApiAvatarEquipChangeNotify, userId, nil, avatarEquipChangeNotify)
 	} else if avatar.EquipWeapon != nil {
 		// 角色当前有武器
 		player.TakeOffWeapon(avatarId, avatar.EquipWeapon.WeaponId)
@@ -134,7 +134,7 @@ func (g *GameManager) WearUserAvatarEquip(userId uint32, avatarId uint32, weapon
 
 	// PacketAvatarEquipChangeNotify
 	avatarEquipChangeNotify := g.PacketAvatarEquipChangeNotify(avatar, weapon, playerTeamEntity.weaponEntityMap[weaponId])
-	g.SendMsg(api.ApiAvatarEquipChangeNotify, userId, nil, avatarEquipChangeNotify)
+	g.SendMsg(proto.ApiAvatarEquipChangeNotify, userId, nil, avatarEquipChangeNotify)
 }
 
 func (g *GameManager) PacketAvatarEquipChangeNotify(avatar *model.Avatar, weapon *model.Weapon, entityId uint32) *proto.AvatarEquipChangeNotify {
@@ -173,7 +173,7 @@ func (g *GameManager) UpdateUserAvatarFightProp(userId uint32, avatarId uint32) 
 	avatar := player.AvatarMap[avatarId]
 	avatarFightPropNotify.AvatarGuid = avatar.Guid
 	avatarFightPropNotify.FightPropMap = avatar.FightPropMap
-	g.SendMsg(api.ApiAvatarFightPropNotify, userId, nil, avatarFightPropNotify)
+	g.SendMsg(proto.ApiAvatarFightPropNotify, userId, nil, avatarFightPropNotify)
 }
 
 func (g *GameManager) PacketAvatarInfo(avatar *model.Avatar) *proto.AvatarInfo {

@@ -2,17 +2,19 @@ package game
 
 import (
 	"flswld.com/common/utils/alg"
-	"flswld.com/gate-genshin-api/api"
+	"flswld.com/gate-genshin-api/proto"
+	"flswld.com/logger"
 	"game-genshin/dao"
 	"game-genshin/rpc"
+	pb "google.golang.org/protobuf/proto"
 	"time"
 )
 
 type GameManager struct {
 	dao          *dao.Dao
 	rpcManager   *rpc.RpcManager
-	netMsgInput  chan *api.NetMsg
-	netMsgOutput chan *api.NetMsg
+	netMsgInput  chan *proto.NetMsg
+	netMsgOutput chan *proto.NetMsg
 	snowflake    *alg.SnowflakeWorker
 	// 本地事件队列管理器
 	localEventManager *LocalEventManager
@@ -26,7 +28,7 @@ type GameManager struct {
 	tickManager *TickManager
 }
 
-func NewGameManager(dao *dao.Dao, rpcManager *rpc.RpcManager, netMsgInput chan *api.NetMsg, netMsgOutput chan *api.NetMsg) (r *GameManager) {
+func NewGameManager(dao *dao.Dao, rpcManager *rpc.RpcManager, netMsgInput chan *proto.NetMsg, netMsgOutput chan *proto.NetMsg) (r *GameManager) {
 	r = new(GameManager)
 	r.dao = dao
 	r.rpcManager = rpcManager
@@ -47,7 +49,7 @@ func (g *GameManager) Start() {
 	go func() {
 		for {
 			select {
-			case netMsg := <-g.netMsgInput:
+			case netMsg := <-g.netMsgOutput:
 				// 接收客户端消息
 				g.routeManager.RouteHandle(netMsg)
 			case <-g.tickManager.ticker.C:
@@ -62,20 +64,26 @@ func (g *GameManager) Start() {
 }
 
 // 发送消息给客户端
-func (g *GameManager) SendMsg(apiId uint16, userId uint32, headMsg *api.PacketHead, payloadMsg any) {
-	netMsg := new(api.NetMsg)
+func (g *GameManager) SendMsg(apiId uint16, userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+	netMsg := new(proto.NetMsg)
 	netMsg.UserId = userId
-	netMsg.EventId = api.NormalMsg
+	netMsg.EventId = proto.NormalMsg
 	netMsg.ApiId = apiId
 	netMsg.HeadMessage = headMsg
-	netMsg.PayloadMessage = payloadMsg
-	g.netMsgOutput <- netMsg
+	// 在这里直接序列化成二进制数据 防止发送的消息内包含各种游戏数据指针 而造成并发读写的问题
+	payloadMessageData, err := pb.Marshal(payloadMsg)
+	if err != nil {
+		logger.LOG.Error("parse payload msg to bin error: %v", err)
+		return
+	}
+	netMsg.PayloadMessageData = payloadMessageData
+	g.netMsgInput <- netMsg
 }
 
-func (g *GameManager) getHeadMsg(seq uint32) (headMsg *api.PacketHead) {
-	headMsg = new(api.PacketHead)
+func (g *GameManager) getHeadMsg(seq uint32) (headMsg *proto.PacketHead) {
+	headMsg = new(proto.PacketHead)
 	headMsg.ClientSequenceId = seq
-	headMsg.Timestamp = uint64(time.Now().UnixMilli())
+	headMsg.SentMs = uint64(time.Now().UnixMilli())
 	return headMsg
 }
 

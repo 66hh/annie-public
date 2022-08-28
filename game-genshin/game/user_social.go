@@ -2,17 +2,17 @@ package game
 
 import (
 	"flswld.com/common/utils/object"
-	"flswld.com/gate-genshin-api/api"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	"game-genshin/constant"
 	"game-genshin/model"
+	pb "google.golang.org/protobuf/proto"
 	"regexp"
 	"time"
 	"unicode/utf8"
 )
 
-func (g *GameManager) GetPlayerSocialDetailReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) GetPlayerSocialDetailReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get player social detail, user id: %v", userId)
 	req := payloadMsg.(*proto.GetPlayerSocialDetailReq)
 	targetUid := req.Uid
@@ -35,12 +35,12 @@ func (g *GameManager) GetPlayerSocialDetailReq(userId uint32, headMsg *api.Packe
 		socialDetail.IsFriend = false
 		getPlayerSocialDetailRsp.DetailData = socialDetail
 	} else {
-		getPlayerSocialDetailRsp.Retcode = int32(proto.Retcode_RET_PLAYER_NOT_EXIST)
+		getPlayerSocialDetailRsp.Retcode = int32(proto.Retcode_RETCODE_RET_PLAYER_NOT_EXIST)
 	}
-	g.SendMsg(api.ApiGetPlayerSocialDetailRsp, userId, nil, getPlayerSocialDetailRsp)
+	g.SendMsg(proto.ApiGetPlayerSocialDetailRsp, userId, nil, getPlayerSocialDetailRsp)
 }
 
-func (g *GameManager) SetPlayerBirthdayReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) SetPlayerBirthdayReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user set birthday, user id: %v", userId)
 	req := payloadMsg.(*proto.SetPlayerBirthdayReq)
 	_ = req
@@ -51,7 +51,7 @@ func (g *GameManager) SetPlayerBirthdayReq(userId uint32, headMsg *api.PacketHea
 	}
 }
 
-func (g *GameManager) SetNameCardReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) SetNameCardReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change name card, user id: %v", userId)
 	req := payloadMsg.(*proto.SetNameCardReq)
 	nameCardId := req.NameCardId
@@ -75,10 +75,10 @@ func (g *GameManager) SetNameCardReq(userId uint32, headMsg *api.PacketHead, pay
 	// PacketSetNameCardRsp
 	setNameCardRsp := new(proto.SetNameCardRsp)
 	setNameCardRsp.NameCardId = nameCardId
-	g.SendMsg(api.ApiSetNameCardRsp, userId, nil, setNameCardRsp)
+	g.SendMsg(proto.ApiSetNameCardRsp, userId, nil, setNameCardRsp)
 }
 
-func (g *GameManager) SetPlayerSignatureReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) SetPlayerSignatureReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change signature, user id: %v", userId)
 	req := payloadMsg.(*proto.SetPlayerSignatureReq)
 	signature := req.Signature
@@ -91,17 +91,17 @@ func (g *GameManager) SetPlayerSignatureReq(userId uint32, headMsg *api.PacketHe
 	// PacketSetPlayerSignatureRsp
 	setPlayerSignatureRsp := new(proto.SetPlayerSignatureRsp)
 	if !object.IsUtf8String(signature) {
-		setPlayerSignatureRsp.Retcode = int32(proto.Retcode_RET_SIGNATURE_ILLEGAL)
+		setPlayerSignatureRsp.Retcode = int32(proto.Retcode_RETCODE_RET_SIGNATURE_ILLEGAL)
 	} else if utf8.RuneCountInString(signature) > 50 {
-		setPlayerSignatureRsp.Retcode = int32(proto.Retcode_RET_SIGNATURE_ILLEGAL)
+		setPlayerSignatureRsp.Retcode = int32(proto.Retcode_RETCODE_RET_SIGNATURE_ILLEGAL)
 	} else {
 		player.Signature = signature
 		setPlayerSignatureRsp.Signature = player.Signature
 	}
-	g.SendMsg(api.ApiSetPlayerSignatureRsp, userId, nil, setPlayerSignatureRsp)
+	g.SendMsg(proto.ApiSetPlayerSignatureRsp, userId, nil, setPlayerSignatureRsp)
 }
 
-func (g *GameManager) SetPlayerNameReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) SetPlayerNameReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change nickname, user id: %v", userId)
 	req := payloadMsg.(*proto.SetPlayerNameReq)
 	nickName := req.NickName
@@ -114,21 +114,21 @@ func (g *GameManager) SetPlayerNameReq(userId uint32, headMsg *api.PacketHead, p
 	// PacketSetPlayerNameRsp
 	setPlayerNameRsp := new(proto.SetPlayerNameRsp)
 	if len(nickName) == 0 {
-		setPlayerNameRsp.Retcode = int32(proto.Retcode_RET_NICKNAME_IS_EMPTY)
+		setPlayerNameRsp.Retcode = int32(proto.Retcode_RETCODE_RET_NICKNAME_IS_EMPTY)
 	} else if !object.IsUtf8String(nickName) {
-		setPlayerNameRsp.Retcode = int32(proto.Retcode_RET_NICKNAME_UTF8_ERROR)
+		setPlayerNameRsp.Retcode = int32(proto.Retcode_RETCODE_RET_NICKNAME_UTF8_ERROR)
 	} else if utf8.RuneCountInString(nickName) > 14 {
-		setPlayerNameRsp.Retcode = int32(proto.Retcode_RET_NICKNAME_TOO_LONG)
+		setPlayerNameRsp.Retcode = int32(proto.Retcode_RETCODE_RET_NICKNAME_TOO_LONG)
 	} else if len(regexp.MustCompile(`\d`).FindAllString(nickName, -1)) > 6 {
-		setPlayerNameRsp.Retcode = int32(proto.Retcode_RET_NICKNAME_TOO_MANY_DIGITS)
+		setPlayerNameRsp.Retcode = int32(proto.Retcode_RETCODE_RET_NICKNAME_TOO_MANY_DIGITS)
 	} else {
 		player.NickName = nickName
 		setPlayerNameRsp.NickName = player.NickName
 	}
-	g.SendMsg(api.ApiSetPlayerNameRsp, userId, nil, setPlayerNameRsp)
+	g.SendMsg(proto.ApiSetPlayerNameRsp, userId, nil, setPlayerNameRsp)
 }
 
-func (g *GameManager) SetPlayerHeadImageReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) SetPlayerHeadImageReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change head image, user id: %v", userId)
 	req := payloadMsg.(*proto.SetPlayerHeadImageReq)
 	avatarId := req.AvatarId
@@ -147,10 +147,10 @@ func (g *GameManager) SetPlayerHeadImageReq(userId uint32, headMsg *api.PacketHe
 	// PacketSetPlayerHeadImageRsp
 	setPlayerHeadImageRsp := new(proto.SetPlayerHeadImageRsp)
 	setPlayerHeadImageRsp.ProfilePicture = &proto.ProfilePicture{AvatarId: player.HeadImage}
-	g.SendMsg(api.ApiSetPlayerHeadImageRsp, userId, nil, setPlayerHeadImageRsp)
+	g.SendMsg(proto.ApiSetPlayerHeadImageRsp, userId, nil, setPlayerHeadImageRsp)
 }
 
-func (g *GameManager) GetAllUnlockNameCardReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) GetAllUnlockNameCardReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get all unlock name card, user id: %v", userId)
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
@@ -161,10 +161,10 @@ func (g *GameManager) GetAllUnlockNameCardReq(userId uint32, headMsg *api.Packet
 	// PacketGetAllUnlockNameCardRsp
 	getAllUnlockNameCardRsp := new(proto.GetAllUnlockNameCardRsp)
 	getAllUnlockNameCardRsp.NameCardList = player.NameCardList
-	g.SendMsg(api.ApiGetAllUnlockNameCardRsp, userId, nil, getAllUnlockNameCardRsp)
+	g.SendMsg(proto.ApiGetAllUnlockNameCardRsp, userId, nil, getAllUnlockNameCardRsp)
 }
 
-func (g *GameManager) GetPlayerFriendListReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) GetPlayerFriendListReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get friend list, user id: %v", userId)
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
@@ -207,10 +207,10 @@ func (g *GameManager) GetPlayerFriendListReq(userId uint32, headMsg *api.PacketH
 		}
 		getPlayerFriendListRsp.FriendList = append(getPlayerFriendListRsp.FriendList, friendBrief)
 	}
-	g.SendMsg(api.ApiGetPlayerFriendListRsp, userId, nil, getPlayerFriendListRsp)
+	g.SendMsg(proto.ApiGetPlayerFriendListRsp, userId, nil, getPlayerFriendListRsp)
 }
 
-func (g *GameManager) GetPlayerAskFriendListReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) GetPlayerAskFriendListReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get friend apply list, user id: %v", userId)
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
@@ -253,10 +253,10 @@ func (g *GameManager) GetPlayerAskFriendListReq(userId uint32, headMsg *api.Pack
 		}
 		getPlayerAskFriendListRsp.AskFriendList = append(getPlayerAskFriendListRsp.AskFriendList, friendBrief)
 	}
-	g.SendMsg(api.ApiGetPlayerAskFriendListRsp, userId, nil, getPlayerAskFriendListRsp)
+	g.SendMsg(proto.ApiGetPlayerAskFriendListRsp, userId, nil, getPlayerAskFriendListRsp)
 }
 
-func (g *GameManager) AskAddFriendReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) AskAddFriendReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user apply add friend, user id: %v", userId)
 	req := payloadMsg.(*proto.AskAddFriendReq)
 	targetUid := req.TargetUid
@@ -310,16 +310,16 @@ func (g *GameManager) AskAddFriendReq(userId uint32, headMsg *api.PacketHead, pa
 			IsGameSource:      true,
 			PlatformType:      proto.PlatformType_PLATFORM_TYPE_PC,
 		}
-		g.SendMsg(api.ApiAskAddFriendNotify, targetPlayer.PlayerID, nil, askAddFriendNotify)
+		g.SendMsg(proto.ApiAskAddFriendNotify, targetPlayer.PlayerID, nil, askAddFriendNotify)
 	}
 
 	// PacketAskAddFriendRsp
 	askAddFriendRsp := new(proto.AskAddFriendRsp)
 	askAddFriendRsp.TargetUid = targetUid
-	g.SendMsg(api.ApiAskAddFriendRsp, userId, nil, askAddFriendRsp)
+	g.SendMsg(proto.ApiAskAddFriendRsp, userId, nil, askAddFriendRsp)
 }
 
-func (g *GameManager) DealAddFriendReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) DealAddFriendReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user deal friend apply, user id: %v", userId)
 	req := payloadMsg.(*proto.DealAddFriendReq)
 	targetUid := req.TargetUid
@@ -354,10 +354,10 @@ func (g *GameManager) DealAddFriendReq(userId uint32, headMsg *api.PacketHead, p
 	dealAddFriendRsp := new(proto.DealAddFriendRsp)
 	dealAddFriendRsp.TargetUid = targetUid
 	dealAddFriendRsp.DealAddFriendResult = result
-	g.SendMsg(api.ApiDealAddFriendRsp, userId, nil, dealAddFriendRsp)
+	g.SendMsg(proto.ApiDealAddFriendRsp, userId, nil, dealAddFriendRsp)
 }
 
-func (g *GameManager) GetOnlinePlayerListReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) GetOnlinePlayerListReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get online player list, user id: %v", userId)
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
@@ -390,7 +390,7 @@ func (g *GameManager) GetOnlinePlayerListReq(userId uint32, headMsg *api.PacketH
 		onlinePlayerInfo := g.PacketOnlinePlayerInfo(onlinePlayer)
 		getOnlinePlayerListRsp.PlayerInfoList = append(getOnlinePlayerListRsp.PlayerInfoList, onlinePlayerInfo)
 	}
-	g.SendMsg(api.ApiGetOnlinePlayerListRsp, userId, nil, getOnlinePlayerListRsp)
+	g.SendMsg(proto.ApiGetOnlinePlayerListRsp, userId, nil, getOnlinePlayerListRsp)
 }
 
 func (g *GameManager) PacketOnlinePlayerInfo(player *model.Player) *proto.OnlinePlayerInfo {

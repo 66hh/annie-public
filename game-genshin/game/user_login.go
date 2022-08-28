@@ -2,12 +2,12 @@ package game
 
 import (
 	"flswld.com/common/utils/reflection"
-	"flswld.com/gate-genshin-api/api"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	gdc "game-genshin/config"
 	"game-genshin/constant"
 	"game-genshin/model"
+	pb "google.golang.org/protobuf/proto"
 	"time"
 )
 
@@ -21,8 +21,23 @@ func (g *GameManager) OnLogin(userId uint32) {
 
 func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 	if player == nil {
-		g.SendMsg(api.ApiDoSetPlayerBornDataNotify, userId, nil, new(proto.NullMsg))
+		g.SendMsg(proto.ApiDoSetPlayerBornDataNotify, userId, nil, new(proto.NullMsg))
 		return
+	}
+	{
+		// TODO 3.0.0REL版本目前存在当前队伍活跃角色非主角登录进不去场景的情况
+		activeAvatarId := player.TeamConfig.GetActiveAvatarId()
+		if activeAvatarId != player.MainCharAvatarId {
+			activeTeam := player.TeamConfig.GetActiveTeam()
+			mainCharIndex := player.TeamConfig.CurrAvatarIndex
+			for index, avatarId := range activeTeam.AvatarIdList {
+				if avatarId == player.MainCharAvatarId {
+					mainCharIndex = uint8(index)
+				}
+			}
+			activeTeam.AvatarIdList[mainCharIndex] = player.MainCharAvatarId
+			player.TeamConfig.CurrAvatarIndex = mainCharIndex
+		}
 	}
 	// 创建世界
 	player.Online = true
@@ -53,7 +68,7 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 		propValue.Val = int64(v)
 		playerDataNotify.PropMap[uint32(k)] = propValue
 	}
-	g.SendMsg(api.ApiPlayerDataNotify, userId, nil, playerDataNotify)
+	g.SendMsg(proto.ApiPlayerDataNotify, userId, nil, playerDataNotify)
 
 	// PacketStoreWeightLimitNotify
 	storeWeightLimitNotify := new(proto.StoreWeightLimitNotify)
@@ -64,7 +79,7 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 	storeWeightLimitNotify.ReliquaryCountLimit = 2000
 	storeWeightLimitNotify.MaterialCountLimit = 2000
 	storeWeightLimitNotify.FurnitureCountLimit = 2000
-	g.SendMsg(api.ApiStoreWeightLimitNotify, userId, nil, storeWeightLimitNotify)
+	g.SendMsg(proto.ApiStoreWeightLimitNotify, userId, nil, storeWeightLimitNotify)
 
 	// PacketPlayerStoreNotify
 	playerStoreNotify := new(proto.PlayerStoreNotify)
@@ -149,7 +164,7 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 		}
 		playerStoreNotify.ItemList = append(playerStoreNotify.ItemList, pbItem)
 	}
-	g.SendMsg(api.ApiPlayerStoreNotify, userId, nil, playerStoreNotify)
+	g.SendMsg(proto.ApiPlayerStoreNotify, userId, nil, playerStoreNotify)
 
 	// PacketAvatarDataNotify
 	avatarDataNotify := new(proto.AvatarDataNotify)
@@ -177,13 +192,13 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 			TeamName:       team.Name,
 		}
 	}
-	g.SendMsg(api.ApiAvatarDataNotify, userId, nil, avatarDataNotify)
+	g.SendMsg(proto.ApiAvatarDataNotify, userId, nil, avatarDataNotify)
 
 	player.BornInScene = false
 
 	// PacketPlayerEnterSceneNotify
 	playerEnterSceneNotify := g.PacketPlayerEnterSceneNotify(player)
-	g.SendMsg(api.ApiPlayerEnterSceneNotify, userId, nil, playerEnterSceneNotify)
+	g.SendMsg(proto.ApiPlayerEnterSceneNotify, userId, nil, playerEnterSceneNotify)
 
 	//g.userManager.UpdateUser(player)
 
@@ -195,10 +210,10 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 	for _, v := range openStateConstMap {
 		openStateUpdateNotify.OpenStateMap[uint32(v.(uint16))] = 1
 	}
-	g.SendMsg(api.ApiOpenStateUpdateNotify, userId, nil, openStateUpdateNotify)
+	g.SendMsg(proto.ApiOpenStateUpdateNotify, userId, nil, openStateUpdateNotify)
 }
 
-func (g *GameManager) SetPlayerBornDataReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) SetPlayerBornDataReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user set born data, user id: %v", userId)
 	if headMsg != nil {
 		logger.LOG.Debug("client sequence id: %v", headMsg.ClientSequenceId)
@@ -231,6 +246,7 @@ func (g *GameManager) PlayerReg(exist bool, req *proto.SetPlayerBornDataReq, use
 	player.PlayerID = userId
 	player.NickName = req.NickName
 	player.Signature = "惟愿时光记忆，一路繁花千树。"
+	player.MainCharAvatarId = mainCharAvatarId
 	player.HeadImage = mainCharAvatarId
 	player.NameCard = 210001
 	player.NameCardList = make([]uint32, 0)
@@ -325,13 +341,13 @@ func (g *GameManager) PlayerReg(exist bool, req *proto.SetPlayerBornDataReq, use
 
 	g.userManager.AddUser(player)
 
-	g.SendMsg(api.ApiSetPlayerBornDataRsp, userId, nil, new(proto.NullMsg))
+	g.SendMsg(proto.ApiSetPlayerBornDataRsp, userId, nil, new(proto.NullMsg))
 	g.OnLogin(userId)
 }
 
-func (g *GameManager) PlayerForceExitReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) PlayerForceExitReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	// 告诉网关断开玩家的连接
-	g.SendMsg(api.ApiPlayerForceExitRsp, userId, nil, new(proto.NullMsg))
+	g.SendMsg(proto.ApiPlayerForceExitRsp, userId, nil, new(proto.NullMsg))
 	go func() {
 		time.Sleep(time.Second)
 		g.KickPlayer(userId)

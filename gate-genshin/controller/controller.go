@@ -20,7 +20,8 @@ type Controller struct {
 	regionListBase64 string
 	regionCurrBase64 string
 	signRsaKey       []byte
-	encRsaKey        []byte
+	osEncRsaKey      []byte
+	cnEncRsaKey      []byte
 	pwdRsaKey        []byte
 }
 
@@ -31,7 +32,7 @@ func NewController(dao *dao.Dao, rpcUserConsumer *light.Consumer) (r *Controller
 	r.regionListBase64 = ""
 	r.regionCurrBase64 = ""
 	regionCurr, regionList := region.InitRegion(config.CONF.Genshin.KcpAddr, config.CONF.Genshin.KcpPort)
-	r.signRsaKey, r.encRsaKey, r.pwdRsaKey = region.LoadRsaKey()
+	r.signRsaKey, r.osEncRsaKey, r.cnEncRsaKey, r.pwdRsaKey = region.LoadRsaKey()
 	regionCurrModify, err := pb.Marshal(regionCurr)
 	if err != nil {
 		logger.LOG.Error("Marshal QueryCurrRegionHttpRsp error")

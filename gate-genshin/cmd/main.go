@@ -2,11 +2,13 @@ package main
 
 import (
 	"flswld.com/common/config"
-	_ "flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/light"
 	"flswld.com/logger"
 	"gate-genshin/controller"
 	"gate-genshin/dao"
+	"gate-genshin/forward"
+	"gate-genshin/mq"
 	"gate-genshin/net"
 	"gate-genshin/rpc"
 	"os"
@@ -22,29 +24,33 @@ func main() {
 	logger.InitLogger()
 	logger.LOG.Info("gate genshin start")
 
+	db := dao.NewDao()
+
 	// 用户服务
 	rpcUserConsumer := light.NewRpcConsumer("annie-user-app")
-
-	db := dao.NewDao()
 
 	_ = controller.NewController(db, rpcUserConsumer)
 
 	kcpEventInput := make(chan *net.KcpEvent)
 	kcpEventOutput := make(chan *net.KcpEvent)
-	kcpMsgInput := make(chan *net.KcpMsg, 10000)
-	kcpMsgOutput := make(chan *net.KcpMsg, 10000)
 	protoMsgInput := make(chan *net.ProtoMsg, 10000)
 	protoMsgOutput := make(chan *net.ProtoMsg, 10000)
+	netMsgInput := make(chan *proto.NetMsg, 10000)
+	netMsgOutput := make(chan *proto.NetMsg, 10000)
 
-	connectManager := net.NewKcpConnectManager(kcpEventInput, kcpEventOutput, kcpMsgInput, kcpMsgOutput)
-	protoEnDecode := net.NewProtoEnDecode(kcpMsgInput, kcpMsgOutput, protoMsgInput, protoMsgOutput)
+	connectManager := net.NewKcpConnectManager(protoMsgInput, protoMsgOutput, kcpEventInput, kcpEventOutput)
 	connectManager.Start()
-	protoEnDecode.Start()
+
+	forwardManager := forward.NewForwardManager(db, protoMsgInput, protoMsgOutput, kcpEventInput, kcpEventOutput, netMsgInput, netMsgOutput)
+	forwardManager.Start()
 
 	gameServiceConsumer := light.NewRpcConsumer("game-genshin-app")
-	rpcManager := rpc.NewRpcManager(db, gameServiceConsumer, protoMsgInput, protoMsgOutput, kcpEventInput, kcpEventOutput)
+
+	rpcManager := rpc.NewRpcManager(forwardManager)
 	rpcMsgProvider := light.NewRpcProvider(rpcManager)
-	rpcManager.Start()
+
+	messageQueue := mq.NewMessageQueue(netMsgInput, netMsgOutput)
+	messageQueue.Start()
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
@@ -54,10 +60,11 @@ func main() {
 		switch s {
 		case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT:
 			logger.LOG.Info("gate genshin exit")
-			db.CloseDao()
-			rpcUserConsumer.CloseRpcConsumer()
+			messageQueue.Close()
 			rpcMsgProvider.CloseRpcProvider()
 			gameServiceConsumer.CloseRpcConsumer()
+			rpcUserConsumer.CloseRpcConsumer()
+			db.CloseDao()
 			time.Sleep(time.Second)
 			return
 		case syscall.SIGHUP:

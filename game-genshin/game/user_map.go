@@ -1,15 +1,15 @@
 package game
 
 import (
-	"flswld.com/gate-genshin-api/api"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	gdc "game-genshin/config"
 	"game-genshin/constant"
+	pb "google.golang.org/protobuf/proto"
 	"strconv"
 )
 
-func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get scene trans to point, user id: %v", userId)
 	req := payloadMsg.(*proto.SceneTransToPointReq)
 
@@ -20,7 +20,7 @@ func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *api.PacketHea
 		sceneTransToPointRsp := new(proto.SceneTransToPointRsp)
 		// TODO Retcode.proto
 		sceneTransToPointRsp.Retcode = 1 // RET_SVR_ERROR_VALUE
-		g.SendMsg(api.ApiSceneTransToPointRsp, userId, nil, sceneTransToPointRsp)
+		g.SendMsg(proto.ApiSceneTransToPointRsp, userId, nil, sceneTransToPointRsp)
 		return
 	}
 
@@ -70,7 +70,7 @@ func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *api.PacketHea
 	}
 	enterReasonConst := constant.GetEnterReasonConst()
 	playerEnterSceneNotify := g.PacketPlayerEnterSceneNotifyTp(player, enterType, uint32(enterReasonConst.TransPoint), newSceneId, player.Pos)
-	g.SendMsg(api.ApiPlayerEnterSceneNotify, userId, nil, playerEnterSceneNotify)
+	g.SendMsg(proto.ApiPlayerEnterSceneNotify, userId, nil, playerEnterSceneNotify)
 	//g.userManager.UpdateUser(player)
 
 	// PacketSceneTransToPointRsp
@@ -78,10 +78,10 @@ func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *api.PacketHea
 	sceneTransToPointRsp.Retcode = 0
 	sceneTransToPointRsp.PointId = req.PointId
 	sceneTransToPointRsp.SceneId = req.SceneId
-	g.SendMsg(api.ApiSceneTransToPointRsp, userId, nil, sceneTransToPointRsp)
+	g.SendMsg(proto.ApiSceneTransToPointRsp, userId, nil, sceneTransToPointRsp)
 }
 
-func (g *GameManager) MarkMapReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) MarkMapReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user mark map, user id: %v", userId)
 	req := payloadMsg.(*proto.MarkMapReq)
 	operation := req.Op
@@ -145,7 +145,7 @@ func (g *GameManager) MarkMapReq(userId uint32, headMsg *api.PacketHead, payload
 			}
 			enterReasonConst := constant.GetEnterReasonConst()
 			playerEnterSceneNotify := g.PacketPlayerEnterSceneNotifyTp(player, enterType, uint32(enterReasonConst.TransPoint), newSceneId, player.Pos)
-			g.SendMsg(api.ApiPlayerEnterSceneNotify, userId, nil, playerEnterSceneNotify)
+			g.SendMsg(proto.ApiPlayerEnterSceneNotify, userId, nil, playerEnterSceneNotify)
 			//g.userManager.UpdateUser(player)
 		}
 	}

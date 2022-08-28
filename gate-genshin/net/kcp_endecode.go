@@ -25,6 +25,13 @@ import (
 +---------------------------------------------------------------------------------------+
 */
 
+type KcpMsg struct {
+	ConvId    uint64
+	ApiId     uint16
+	HeadData  []byte
+	ProtoData []byte
+}
+
 func (k *KcpConnectManager) decodeBinToPayload(data []byte, convId uint64, kcpMsgList *[]*KcpMsg) {
 	// xor解密
 	k.kcpKeyMapLock.RLock()

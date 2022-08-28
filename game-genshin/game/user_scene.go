@@ -3,17 +3,17 @@ package game
 import (
 	"flswld.com/common/utils/object"
 	"flswld.com/common/utils/random"
-	"flswld.com/gate-genshin-api/api"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	gdc "game-genshin/config"
 	"game-genshin/constant"
 	"game-genshin/model"
+	pb "google.golang.org/protobuf/proto"
 	"strconv"
 	"time"
 )
 
-func (g *GameManager) EnterSceneReadyReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) EnterSceneReadyReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user enter scene ready, user id: %v", userId)
 	req := payloadMsg.(*proto.EnterSceneReadyReq)
 	logger.LOG.Debug("EnterSceneReadyReq: %v", req)
@@ -29,20 +29,20 @@ func (g *GameManager) EnterSceneReadyReq(userId uint32, headMsg *api.PacketHead,
 	enterScenePeerNotify.PeerId = player.PeerId
 	enterScenePeerNotify.HostPeerId = world.owner.PeerId
 	enterScenePeerNotify.EnterSceneToken = player.EnterSceneToken
-	g.SendMsg(api.ApiEnterScenePeerNotify, userId, nil, enterScenePeerNotify)
+	g.SendMsg(proto.ApiEnterScenePeerNotify, userId, nil, enterScenePeerNotify)
 
 	enterSceneReadyRsp := new(proto.EnterSceneReadyRsp)
 	enterSceneReadyRsp.EnterSceneToken = player.EnterSceneToken
-	g.SendMsg(api.ApiEnterSceneReadyRsp, userId, nil, enterSceneReadyRsp)
+	g.SendMsg(proto.ApiEnterSceneReadyRsp, userId, nil, enterSceneReadyRsp)
 }
 
-func (g *GameManager) SceneInitFinishReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) SceneInitFinishReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user scene init finish, user id: %v", userId)
 
 	// PacketServerTimeNotify
 	serverTimeNotify := new(proto.ServerTimeNotify)
 	serverTimeNotify.ServerTime = uint64(time.Now().UnixMilli())
-	g.SendMsg(api.ApiServerTimeNotify, userId, nil, serverTimeNotify)
+	g.SendMsg(proto.ApiServerTimeNotify, userId, nil, serverTimeNotify)
 
 	// PacketWorldPlayerInfoNotify
 	worldPlayerInfoNotify := new(proto.WorldPlayerInfoNotify)
@@ -68,7 +68,7 @@ func (g *GameManager) SceneInitFinishReq(userId uint32, headMsg *api.PacketHead,
 		worldPlayerInfoNotify.PlayerInfoList = append(worldPlayerInfoNotify.PlayerInfoList, onlinePlayerInfo)
 		worldPlayerInfoNotify.PlayerUidList = append(worldPlayerInfoNotify.PlayerUidList, worldPlayer.PlayerID)
 	}
-	g.SendMsg(api.ApiWorldPlayerInfoNotify, userId, nil, worldPlayerInfoNotify)
+	g.SendMsg(proto.ApiWorldPlayerInfoNotify, userId, nil, worldPlayerInfoNotify)
 
 	// PacketWorldDataNotify
 	worldDataNotify := new(proto.WorldDataNotify)
@@ -85,7 +85,7 @@ func (g *GameManager) SceneInitFinishReq(userId uint32, headMsg *api.PacketHead,
 		Val:   object.ConvBoolToInt64(world.multiplayer),
 		Value: &proto.PropValue_Ival{Ival: object.ConvBoolToInt64(world.multiplayer)},
 	}
-	g.SendMsg(api.ApiWorldDataNotify, userId, nil, worldDataNotify)
+	g.SendMsg(proto.ApiWorldDataNotify, userId, nil, worldDataNotify)
 
 	// PacketPlayerWorldSceneInfoListNotify
 	playerWorldSceneInfoListNotify := new(proto.PlayerWorldSceneInfoListNotify)
@@ -106,28 +106,28 @@ func (g *GameManager) SceneInitFinishReq(userId uint32, headMsg *api.PacketHead,
 		xumi.SceneTagIdList = append(xumi.SceneTagIdList, uint32(i))
 	}
 	playerWorldSceneInfoListNotify.InfoList = append(playerWorldSceneInfoListNotify.InfoList, xumi)
-	g.SendMsg(api.ApiPlayerWorldSceneInfoListNotify, userId, nil, playerWorldSceneInfoListNotify)
+	g.SendMsg(proto.ApiPlayerWorldSceneInfoListNotify, userId, nil, playerWorldSceneInfoListNotify)
 
 	// SceneForceUnlockNotify
-	g.SendMsg(api.ApiSceneForceUnlockNotify, userId, nil, new(proto.NullMsg))
+	g.SendMsg(proto.ApiSceneForceUnlockNotify, userId, nil, new(proto.NullMsg))
 
 	// PacketHostPlayerNotify
 	hostPlayerNotify := new(proto.HostPlayerNotify)
 	hostPlayerNotify.HostUid = world.owner.PlayerID
 	hostPlayerNotify.HostPeerId = world.owner.PeerId
-	g.SendMsg(api.ApiHostPlayerNotify, userId, nil, hostPlayerNotify)
+	g.SendMsg(proto.ApiHostPlayerNotify, userId, nil, hostPlayerNotify)
 
 	// PacketSceneTimeNotify
 	sceneTimeNotify := new(proto.SceneTimeNotify)
 	sceneTimeNotify.SceneId = player.SceneId
 	sceneTimeNotify.SceneTime = 0
-	g.SendMsg(api.ApiSceneTimeNotify, userId, nil, sceneTimeNotify)
+	g.SendMsg(proto.ApiSceneTimeNotify, userId, nil, sceneTimeNotify)
 
 	// PacketPlayerGameTimeNotify
 	playerGameTimeNotify := new(proto.PlayerGameTimeNotify)
 	playerGameTimeNotify.GameTime = scene.time
 	playerGameTimeNotify.Uid = player.PlayerID
-	g.SendMsg(api.ApiPlayerGameTimeNotify, userId, nil, playerGameTimeNotify)
+	g.SendMsg(proto.ApiPlayerGameTimeNotify, userId, nil, playerGameTimeNotify)
 
 	// PacketPlayerEnterSceneInfoNotify
 	empty := new(proto.AbilitySyncStateInfo)
@@ -161,7 +161,7 @@ func (g *GameManager) SceneInitFinishReq(userId uint32, headMsg *api.PacketHead,
 		avatarEnterSceneInfo.WeaponAbilityInfo = empty
 		playerEnterSceneInfoNotify.AvatarEnterInfo = append(playerEnterSceneInfoNotify.AvatarEnterInfo, avatarEnterSceneInfo)
 	}
-	g.SendMsg(api.ApiPlayerEnterSceneInfoNotify, userId, nil, playerEnterSceneInfoNotify)
+	g.SendMsg(proto.ApiPlayerEnterSceneInfoNotify, userId, nil, playerEnterSceneInfoNotify)
 	//g.userManager.UpdateUser(player)
 
 	// PacketSceneAreaWeatherNotify
@@ -169,7 +169,7 @@ func (g *GameManager) SceneInitFinishReq(userId uint32, headMsg *api.PacketHead,
 	sceneAreaWeatherNotify.WeatherAreaId = 0
 	climateTypeConst := constant.GetClimateTypeConst()
 	sceneAreaWeatherNotify.ClimateType = uint32(climateTypeConst.CLIMATE_SUNNY)
-	g.SendMsg(api.ApiSceneAreaWeatherNotify, userId, nil, sceneAreaWeatherNotify)
+	g.SendMsg(proto.ApiSceneAreaWeatherNotify, userId, nil, sceneAreaWeatherNotify)
 
 	// PacketScenePlayerInfoNotify
 	scenePlayerInfoNotify := new(proto.ScenePlayerInfoNotify)
@@ -192,11 +192,11 @@ func (g *GameManager) SceneInitFinishReq(userId uint32, headMsg *api.PacketHead,
 			OnlinePlayerInfo: onlinePlayerInfo,
 		})
 	}
-	g.SendMsg(api.ApiScenePlayerInfoNotify, userId, nil, scenePlayerInfoNotify)
+	g.SendMsg(proto.ApiScenePlayerInfoNotify, userId, nil, scenePlayerInfoNotify)
 
 	// PacketSceneTeamUpdateNotify
 	sceneTeamUpdateNotify := g.PacketSceneTeamUpdateNotify(world)
-	g.SendMsg(api.ApiSceneTeamUpdateNotify, userId, nil, sceneTeamUpdateNotify)
+	g.SendMsg(proto.ApiSceneTeamUpdateNotify, userId, nil, sceneTeamUpdateNotify)
 
 	// PacketSyncTeamEntityNotify
 	syncTeamEntityNotify := new(proto.SyncTeamEntityNotify)
@@ -215,20 +215,20 @@ func (g *GameManager) SceneInitFinishReq(userId uint32, headMsg *api.PacketHead,
 			syncTeamEntityNotify.TeamEntityInfoList = append(syncTeamEntityNotify.TeamEntityInfoList, teamEntityInfo)
 		}
 	}
-	g.SendMsg(api.ApiSyncTeamEntityNotify, userId, nil, syncTeamEntityNotify)
+	g.SendMsg(proto.ApiSyncTeamEntityNotify, userId, nil, syncTeamEntityNotify)
 
 	// PacketSyncScenePlayTeamEntityNotify
 	syncScenePlayTeamEntityNotify := new(proto.SyncScenePlayTeamEntityNotify)
 	syncScenePlayTeamEntityNotify.SceneId = player.SceneId
-	g.SendMsg(api.ApiSyncScenePlayTeamEntityNotify, userId, nil, syncScenePlayTeamEntityNotify)
+	g.SendMsg(proto.ApiSyncScenePlayTeamEntityNotify, userId, nil, syncScenePlayTeamEntityNotify)
 
 	// PacketSceneInitFinishRsp
 	SceneInitFinishRsp := new(proto.SceneInitFinishRsp)
 	SceneInitFinishRsp.EnterSceneToken = player.EnterSceneToken
-	g.SendMsg(api.ApiSceneInitFinishRsp, userId, nil, SceneInitFinishRsp)
+	g.SendMsg(proto.ApiSceneInitFinishRsp, userId, nil, SceneInitFinishRsp)
 }
 
-func (g *GameManager) EnterSceneDoneReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) EnterSceneDoneReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user enter scene done, user id: %v", userId)
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
@@ -241,14 +241,14 @@ func (g *GameManager) EnterSceneDoneReq(userId uint32, headMsg *api.PacketHead, 
 	// PacketEnterSceneDoneRsp
 	enterSceneDoneRsp := new(proto.EnterSceneDoneRsp)
 	enterSceneDoneRsp.EnterSceneToken = player.EnterSceneToken
-	g.SendMsg(api.ApiEnterSceneDoneRsp, userId, nil, enterSceneDoneRsp)
+	g.SendMsg(proto.ApiEnterSceneDoneRsp, userId, nil, enterSceneDoneRsp)
 
 	// PacketPlayerTimeNotify
 	playerTimeNotify := new(proto.PlayerTimeNotify)
 	playerTimeNotify.IsPaused = player.Pause
 	playerTimeNotify.PlayerTime = uint64(player.ClientTime)
 	playerTimeNotify.ServerTime = uint64(time.Now().UnixMilli())
-	g.SendMsg(api.ApiPlayerTimeNotify, userId, nil, playerTimeNotify)
+	g.SendMsg(proto.ApiPlayerTimeNotify, userId, nil, playerTimeNotify)
 
 	g.AddSceneEntityAvatarBroadcastNotify(player)
 	g.MeetSceneEntityNotify(player)
@@ -274,7 +274,7 @@ func (g *GameManager) EnterSceneDoneReq(userId uint32, headMsg *api.PacketHead, 
 		}
 		worldPlayerLocationNotify.PlayerWorldLocList = append(worldPlayerLocationNotify.PlayerWorldLocList, playerWorldLocationInfo)
 	}
-	g.SendMsg(api.ApiWorldPlayerLocationNotify, userId, nil, worldPlayerLocationNotify)
+	g.SendMsg(proto.ApiWorldPlayerLocationNotify, userId, nil, worldPlayerLocationNotify)
 
 	// PacketScenePlayerLocationNotify
 	scenePlayerLocationNotify := new(proto.ScenePlayerLocationNotify)
@@ -295,15 +295,27 @@ func (g *GameManager) EnterSceneDoneReq(userId uint32, headMsg *api.PacketHead, 
 		}
 		scenePlayerLocationNotify.PlayerLocList = append(scenePlayerLocationNotify.PlayerLocList, playerLocationInfo)
 	}
-	g.SendMsg(api.ApiScenePlayerLocationNotify, userId, nil, scenePlayerLocationNotify)
+	g.SendMsg(proto.ApiScenePlayerLocationNotify, userId, nil, scenePlayerLocationNotify)
 
 	// PacketWorldPlayerRTTNotify
 	worldPlayerRTTNotify := new(proto.WorldPlayerRTTNotify)
 	worldPlayerRTTNotify.PlayerRttList = []*proto.PlayerRTTInfo{{Uid: player.PlayerID, Rtt: 10}}
-	g.SendMsg(api.ApiWorldPlayerRTTNotify, userId, nil, worldPlayerRTTNotify)
+	g.SendMsg(proto.ApiWorldPlayerRTTNotify, userId, nil, worldPlayerRTTNotify)
 }
 
-func (g *GameManager) ChangeGameTimeReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) PostEnterSceneReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+	logger.LOG.Debug("user post enter scene, user id: %v", userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
+	postEnterSceneRsp := new(proto.PostEnterSceneRsp)
+	postEnterSceneRsp.EnterSceneToken = player.EnterSceneToken
+	g.SendMsg(proto.ApiPostEnterSceneRsp, userId, nil, postEnterSceneRsp)
+}
+
+func (g *GameManager) ChangeGameTimeReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change game time, user id: %v", userId)
 	req := payloadMsg.(*proto.ChangeGameTimeReq)
 	gameTime := req.GameTime
@@ -319,7 +331,7 @@ func (g *GameManager) ChangeGameTimeReq(userId uint32, headMsg *api.PacketHead, 
 	// PacketChangeGameTimeRsp
 	changeGameTimeRsp := new(proto.ChangeGameTimeRsp)
 	changeGameTimeRsp.CurGameTime = scene.time
-	g.SendMsg(api.ApiChangeGameTimeRsp, userId, nil, changeGameTimeRsp)
+	g.SendMsg(proto.ApiChangeGameTimeRsp, userId, nil, changeGameTimeRsp)
 }
 
 func (g *GameManager) PacketPlayerEnterSceneNotify(player *model.Player) *proto.PlayerEnterSceneNotify {
@@ -382,7 +394,7 @@ func (g *GameManager) AddSceneEntityAvatarBroadcastNotify(player *model.Player) 
 	sceneEntityAppearNotify.AppearType = proto.VisionType_VISION_TYPE_BORN
 	sceneEntityAppearNotify.EntityList = []*proto.SceneEntityInfo{g.PacketSceneEntityInfoAvatar(scene, player, player.TeamConfig.GetActiveAvatarId())}
 	for _, scenePlayer := range scene.playerMap {
-		g.SendMsg(api.ApiSceneEntityAppearNotify, scenePlayer.PlayerID, nil, sceneEntityAppearNotify)
+		g.SendMsg(proto.ApiSceneEntityAppearNotify, scenePlayer.PlayerID, nil, sceneEntityAppearNotify)
 		logger.LOG.Debug("SceneEntityAppearNotify, uid: %v, data: %v", scenePlayer.PlayerID, sceneEntityAppearNotify)
 	}
 }
@@ -398,7 +410,7 @@ func (g *GameManager) RemoveSceneEntityAvatarBroadcastNotify(player *model.Playe
 	sceneEntityDisappearNotify.EntityList = []uint32{playerTeamEntity.avatarEntityMap[activeAvatarId]}
 	sceneEntityDisappearNotify.DisappearType = proto.VisionType_VISION_TYPE_REMOVE
 	for _, scenePlayer := range scene.playerMap {
-		g.SendMsg(api.ApiSceneEntityDisappearNotify, scenePlayer.PlayerID, nil, sceneEntityDisappearNotify)
+		g.SendMsg(proto.ApiSceneEntityDisappearNotify, scenePlayer.PlayerID, nil, sceneEntityDisappearNotify)
 		logger.LOG.Debug("SceneEntityDisappearNotify, uid: %v, data: %v", scenePlayer.PlayerID, sceneEntityDisappearNotify)
 	}
 }
@@ -434,7 +446,7 @@ func (g *GameManager) MeetSceneEntityNotify(player *model.Player) {
 		}
 	}
 
-	g.SendMsg(api.ApiSceneEntityAppearNotify, player.PlayerID, nil, sceneEntityAppearNotify)
+	g.SendMsg(proto.ApiSceneEntityAppearNotify, player.PlayerID, nil, sceneEntityAppearNotify)
 	logger.LOG.Debug("SceneEntityAppearNotify, uid: %v, data: %v", player.PlayerID, sceneEntityAppearNotify)
 }
 

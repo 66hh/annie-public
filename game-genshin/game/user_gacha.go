@@ -3,11 +3,11 @@ package game
 import (
 	"flswld.com/common/config"
 	"flswld.com/common/utils/random"
-	"flswld.com/gate-genshin-api/api"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	gdc "game-genshin/config"
 	"github.com/golang-jwt/jwt/v4"
+	pb "google.golang.org/protobuf/proto"
 	"time"
 )
 
@@ -17,7 +17,7 @@ type UserInfo struct {
 }
 
 // 获取卡池信息
-func (g *GameManager) GetGachaInfoReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) GetGachaInfoReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get gacha info, userId: %v", userId)
 	serverAddr := config.CONF.Genshin.GachaHistoryServer
 	getGachaInfoRsp := new(proto.GetGachaInfoRsp)
@@ -67,12 +67,12 @@ func (g *GameManager) GetGachaInfoReq(userId uint32, headMsg *api.PacketHead, pa
 					ItemIdList:     []uint32{1023, 1031, 1014},
 				},
 			},
-			DisplayUp_4ItemList: []uint32{1023},
-			DisplayUp_5ItemList: []uint32{1022},
-			WishItemId:          0,
-			WishProgress:        0,
-			WishMaxProgress:     0,
-			IsNewWish:           false,
+			DisplayUp4ItemList: []uint32{1023},
+			DisplayUp5ItemList: []uint32{1022},
+			WishItemId:         0,
+			WishProgress:       0,
+			WishMaxProgress:    0,
+			IsNewWish:          false,
 		},
 		// 可莉
 		{
@@ -104,12 +104,12 @@ func (g *GameManager) GetGachaInfoReq(userId uint32, headMsg *api.PacketHead, pa
 					ItemIdList:     []uint32{1025, 1034, 1043},
 				},
 			},
-			DisplayUp_4ItemList: []uint32{1025},
-			DisplayUp_5ItemList: []uint32{1029},
-			WishItemId:          0,
-			WishProgress:        0,
-			WishMaxProgress:     0,
-			IsNewWish:           false,
+			DisplayUp4ItemList: []uint32{1025},
+			DisplayUp5ItemList: []uint32{1029},
+			WishItemId:         0,
+			WishProgress:       0,
+			WishMaxProgress:    0,
+			IsNewWish:          false,
 		},
 		// 阿莫斯之弓&天空之傲
 		{
@@ -141,12 +141,12 @@ func (g *GameManager) GetGachaInfoReq(userId uint32, headMsg *api.PacketHead, pa
 					ItemIdList:     []uint32{11403, 12402, 13401, 14409, 15401},
 				},
 			},
-			DisplayUp_4ItemList: []uint32{11403},
-			DisplayUp_5ItemList: []uint32{15502, 12501},
-			WishItemId:          0,
-			WishProgress:        0,
-			WishMaxProgress:     0,
-			IsNewWish:           false,
+			DisplayUp4ItemList: []uint32{11403},
+			DisplayUp5ItemList: []uint32{15502, 12501},
+			WishItemId:         0,
+			WishProgress:       0,
+			WishMaxProgress:    0,
+			IsNewWish:          false,
 		},
 		// 常驻
 		{
@@ -178,18 +178,18 @@ func (g *GameManager) GetGachaInfoReq(userId uint32, headMsg *api.PacketHead, pa
 					ItemIdList:     []uint32{1021, 1006, 1015},
 				},
 			},
-			DisplayUp_4ItemList: []uint32{1021},
-			DisplayUp_5ItemList: []uint32{1003, 1016},
-			WishItemId:          0,
-			WishProgress:        0,
-			WishMaxProgress:     0,
-			IsNewWish:           false,
+			DisplayUp4ItemList: []uint32{1021},
+			DisplayUp5ItemList: []uint32{1003, 1016},
+			WishItemId:         0,
+			WishProgress:       0,
+			WishMaxProgress:    0,
+			IsNewWish:          false,
 		},
 	}
-	g.SendMsg(api.ApiGetGachaInfoRsp, userId, nil, getGachaInfoRsp)
+	g.SendMsg(proto.ApiGetGachaInfoRsp, userId, nil, getGachaInfoRsp)
 }
 
-func (g *GameManager) DoGachaReq(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) DoGachaReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	logger.LOG.Debug("user do gacha, userId: %v", userId)
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
@@ -321,7 +321,7 @@ func (g *GameManager) DoGachaReq(userId uint32, headMsg *api.PacketHead, payload
 
 	//logger.LOG.Debug("doGachaRsp: %v", doGachaRsp.String())
 
-	g.SendMsg(api.ApiDoGachaRsp, userId, nil, doGachaRsp)
+	g.SendMsg(proto.ApiDoGachaRsp, userId, nil, doGachaRsp)
 }
 
 // 扣1给可莉刷烧烤酱

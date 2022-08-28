@@ -1,8 +1,7 @@
 package game
 
 import (
-	"flswld.com/gate-genshin-api/api"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	gdc "game-genshin/config"
 	"game-genshin/constant"
@@ -74,7 +73,7 @@ func (g *GameManager) AddUserItem(userId uint32, itemList []*UserItem, isHint bo
 		}
 		storeItemChangeNotify.ItemList = append(storeItemChangeNotify.ItemList, pbItem)
 	}
-	g.SendMsg(api.ApiStoreItemChangeNotify, userId, nil, storeItemChangeNotify)
+	g.SendMsg(proto.ApiStoreItemChangeNotify, userId, nil, storeItemChangeNotify)
 
 	if isHint {
 		actionReasonConst := constant.GetActionReasonConst()
@@ -88,7 +87,7 @@ func (g *GameManager) AddUserItem(userId uint32, itemList []*UserItem, isHint bo
 				IsNew:  false,
 			})
 		}
-		g.SendMsg(api.ApiItemAddHintNotify, userId, nil, itemAddHintNotify)
+		g.SendMsg(proto.ApiItemAddHintNotify, userId, nil, itemAddHintNotify)
 	}
 
 	// PacketPlayerPropNotify
@@ -108,7 +107,7 @@ func (g *GameManager) AddUserItem(userId uint32, itemList []*UserItem, isHint bo
 		}
 	}
 	if len(playerPropNotify.PropMap) > 0 {
-		g.SendMsg(api.ApiPlayerPropNotify, userId, nil, playerPropNotify)
+		g.SendMsg(proto.ApiPlayerPropNotify, userId, nil, playerPropNotify)
 	}
 }
 
@@ -142,7 +141,7 @@ func (g *GameManager) CostUserItem(userId uint32, itemList []*UserItem) {
 		storeItemChangeNotify.ItemList = append(storeItemChangeNotify.ItemList, pbItem)
 	}
 	if len(storeItemChangeNotify.ItemList) > 0 {
-		g.SendMsg(api.ApiStoreItemChangeNotify, userId, nil, storeItemChangeNotify)
+		g.SendMsg(proto.ApiStoreItemChangeNotify, userId, nil, storeItemChangeNotify)
 	}
 
 	// PacketStoreItemDelNotify
@@ -156,7 +155,7 @@ func (g *GameManager) CostUserItem(userId uint32, itemList []*UserItem) {
 		storeItemDelNotify.GuidList = append(storeItemDelNotify.GuidList, player.GetItemGuid(userItem.ItemId))
 	}
 	if len(storeItemDelNotify.GuidList) > 0 {
-		g.SendMsg(api.ApiStoreItemDelNotify, userId, nil, storeItemDelNotify)
+		g.SendMsg(proto.ApiStoreItemDelNotify, userId, nil, storeItemDelNotify)
 	}
 
 	// PacketPlayerPropNotify
@@ -176,6 +175,6 @@ func (g *GameManager) CostUserItem(userId uint32, itemList []*UserItem) {
 		}
 	}
 	if len(playerPropNotify.PropMap) > 0 {
-		g.SendMsg(api.ApiPlayerPropNotify, userId, nil, playerPropNotify)
+		g.SendMsg(proto.ApiPlayerPropNotify, userId, nil, playerPropNotify)
 	}
 }

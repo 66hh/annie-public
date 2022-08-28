@@ -2,13 +2,13 @@ package main
 
 import (
 	"flswld.com/common/config"
-	"flswld.com/gate-genshin-api/api"
-	_ "flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/light"
 	"flswld.com/logger"
 	gdc "game-genshin/config"
 	"game-genshin/dao"
 	"game-genshin/game"
+	"game-genshin/mq"
 	"game-genshin/rpc"
 	"os"
 	"os/signal"
@@ -27,13 +27,15 @@ func main() {
 
 	db := dao.NewDao()
 
-	netMsgInput := make(chan *api.NetMsg, 10000)
-	netMsgOutput := make(chan *api.NetMsg, 10000)
+	netMsgInput := make(chan *proto.NetMsg, 10000)
+	netMsgOutput := make(chan *proto.NetMsg, 10000)
 
 	genshinGatewayConsumer := light.NewRpcConsumer("genshin-gateway")
-	rpcManager := rpc.NewRpcManager(genshinGatewayConsumer, netMsgInput, netMsgOutput)
+	rpcManager := rpc.NewRpcManager(genshinGatewayConsumer)
 	gameServiceProvider := light.NewRpcProvider(rpcManager)
-	rpcManager.Start()
+
+	messageQueue := mq.NewMessageQueue(netMsgInput, netMsgOutput)
+	messageQueue.Start()
 
 	gameManager := game.NewGameManager(db, rpcManager, netMsgInput, netMsgOutput)
 	gameManager.Start()
@@ -49,6 +51,7 @@ func main() {
 			db.CloseDao()
 			gameServiceProvider.CloseRpcProvider()
 			genshinGatewayConsumer.CloseRpcConsumer()
+			messageQueue.Close()
 			time.Sleep(time.Second)
 			return
 		case syscall.SIGHUP:

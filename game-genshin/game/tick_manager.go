@@ -2,8 +2,7 @@ package game
 
 import (
 	"flswld.com/common/utils/random"
-	"flswld.com/gate-genshin-api/api"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	"game-genshin/constant"
 	"game-genshin/model"
@@ -98,6 +97,34 @@ func (t *TickManager) onTick10Minute(now int64) {
 	}
 }
 
+func (t *TickManager) onTick10Second(now int64) {
+	for _, world := range t.gameManager.worldManager.worldMap {
+		for _, player := range world.playerMap {
+			// PacketWorldPlayerRTTNotify
+			worldPlayerRTTNotify := new(proto.WorldPlayerRTTNotify)
+			worldPlayerRTTNotify.PlayerRttList = make([]*proto.PlayerRTTInfo, 0)
+			for _, worldPlayer := range world.playerMap {
+				playerRTTInfo := &proto.PlayerRTTInfo{Uid: worldPlayer.PlayerID, Rtt: worldPlayer.ClientRTT}
+				worldPlayerRTTNotify.PlayerRttList = append(worldPlayerRTTNotify.PlayerRttList, playerRTTInfo)
+			}
+			t.gameManager.SendMsg(proto.ApiWorldPlayerRTTNotify, player.PlayerID, nil, worldPlayerRTTNotify)
+
+			// TODO 测试
+			team := player.TeamConfig.GetActiveTeam()
+			for _, avatarId := range team.AvatarIdList {
+				if avatarId == 0 {
+					break
+				}
+				avatar := player.AvatarMap[avatarId]
+				fightPropertyConst := constant.GetFightPropertyConst()
+				avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CUR_ATTACK)] = 1000000
+				avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CRITICAL)] = 1.0
+				t.gameManager.UpdateUserAvatarFightProp(player.PlayerID, avatarId)
+			}
+		}
+	}
+}
+
 func (t *TickManager) onTick5Second(now int64) {
 	for _, world := range t.gameManager.worldManager.worldMap {
 		for _, player := range world.playerMap {
@@ -123,7 +150,7 @@ func (t *TickManager) onTick5Second(now int64) {
 					}
 					worldPlayerLocationNotify.PlayerWorldLocList = append(worldPlayerLocationNotify.PlayerWorldLocList, playerWorldLocationInfo)
 				}
-				t.gameManager.SendMsg(api.ApiWorldPlayerLocationNotify, player.PlayerID, nil, worldPlayerLocationNotify)
+				t.gameManager.SendMsg(proto.ApiWorldPlayerLocationNotify, player.PlayerID, nil, worldPlayerLocationNotify)
 
 				// PacketScenePlayerLocationNotify
 				scene := world.GetSceneById(player.SceneId)
@@ -145,57 +172,37 @@ func (t *TickManager) onTick5Second(now int64) {
 					}
 					scenePlayerLocationNotify.PlayerLocList = append(scenePlayerLocationNotify.PlayerLocList, playerLocationInfo)
 				}
-				t.gameManager.SendMsg(api.ApiScenePlayerLocationNotify, player.PlayerID, nil, scenePlayerLocationNotify)
-			}
-		}
-	}
-}
-
-func (t *TickManager) onTick10Second(now int64) {
-	for _, world := range t.gameManager.worldManager.worldMap {
-		// TODO 测试
-		scene := world.GetSceneById(3)
-		monsterEntityId := t.createMonster(scene)
-
-		// PacketSceneEntityAppearNotify
-		sceneEntityAppearNotify := new(proto.SceneEntityAppearNotify)
-		sceneEntityAppearNotify.AppearType = proto.VisionType_VISION_TYPE_BORN
-		sceneEntityInfo := t.gameManager.PacketSceneEntityInfoMonster(scene, monsterEntityId)
-		sceneEntityAppearNotify.EntityList = []*proto.SceneEntityInfo{sceneEntityInfo}
-		for _, player := range scene.playerMap {
-			t.gameManager.SendMsg(api.ApiSceneEntityAppearNotify, player.PlayerID, nil, sceneEntityAppearNotify)
-		}
-
-		for _, player := range world.playerMap {
-			// PacketWorldPlayerRTTNotify
-			worldPlayerRTTNotify := new(proto.WorldPlayerRTTNotify)
-			worldPlayerRTTNotify.PlayerRttList = make([]*proto.PlayerRTTInfo, 0)
-			for _, worldPlayer := range world.playerMap {
-				playerRTTInfo := &proto.PlayerRTTInfo{Uid: worldPlayer.PlayerID, Rtt: worldPlayer.ClientRTT}
-				// TODO 测试
-				if worldPlayer.PlayerID != player.PlayerID {
-					playerRTTInfo.Rtt *= 1000
-				}
-				worldPlayerRTTNotify.PlayerRttList = append(worldPlayerRTTNotify.PlayerRttList, playerRTTInfo)
-			}
-			t.gameManager.SendMsg(api.ApiWorldPlayerRTTNotify, player.PlayerID, nil, worldPlayerRTTNotify)
-
-			team := player.TeamConfig.GetActiveTeam()
-			for _, avatarId := range team.AvatarIdList {
-				if avatarId == 0 {
-					break
-				}
-				avatar := player.AvatarMap[avatarId]
-				fightPropertyConst := constant.GetFightPropertyConst()
-				avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CUR_ATTACK)] = 1000000
-				avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CRITICAL)] = 1.0
-				t.gameManager.UpdateUserAvatarFightProp(player.PlayerID, avatarId)
+				t.gameManager.SendMsg(proto.ApiScenePlayerLocationNotify, player.PlayerID, nil, scenePlayerLocationNotify)
 			}
 		}
 	}
 }
 
 func (t *TickManager) onTickSecond(now int64) {
+	for _, world := range t.gameManager.worldManager.worldMap {
+		for _, _ = range world.playerMap {
+			// TODO 测试
+			scene := world.GetSceneById(3)
+			monsterEntityCount := 0
+			for _, entity := range scene.entityMap {
+				if entity.entityType == uint32(proto.ProtEntityType_PROT_ENTITY_TYPE_MONSTER) {
+					monsterEntityCount++
+				}
+			}
+			if monsterEntityCount < 30 {
+				monsterEntityId := t.createMonster(scene)
+
+				// PacketSceneEntityAppearNotify
+				sceneEntityAppearNotify := new(proto.SceneEntityAppearNotify)
+				sceneEntityAppearNotify.AppearType = proto.VisionType_VISION_TYPE_BORN
+				sceneEntityInfo := t.gameManager.PacketSceneEntityInfoMonster(scene, monsterEntityId)
+				sceneEntityAppearNotify.EntityList = []*proto.SceneEntityInfo{sceneEntityInfo}
+				for _, scenePlayer := range scene.playerMap {
+					t.gameManager.SendMsg(proto.ApiSceneEntityAppearNotify, scenePlayer.PlayerID, nil, sceneEntityAppearNotify)
+				}
+			}
+		}
+	}
 }
 
 func (t *TickManager) onTick100MilliSecond(now int64) {

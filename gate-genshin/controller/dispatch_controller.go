@@ -10,7 +10,8 @@ import (
 	"io/ioutil"
 	"math"
 	"net/http"
-	"strings"
+	"regexp"
+	"strconv"
 )
 
 func (c *Controller) query_security_file(context *gin.Context) {
@@ -34,7 +35,29 @@ func (c *Controller) query_cur_region(context *gin.Context) {
 	if len(context.Request.URL.RawQuery) > 0 {
 		response = c.regionCurrBase64
 	}
-	if strings.Contains(versionName, "2.7.5") || strings.Contains(versionName, "2.8.") {
+	reg, err := regexp.Compile("[0-9]+")
+	if err != nil {
+		logger.LOG.Error("compile regexp error: %v", err)
+		return
+	}
+	versionSlice := reg.FindAllString(versionName, -1)
+	version := 0
+	for index := 0; index < len(versionSlice); index++ {
+		v, err := strconv.Atoi(versionSlice[index])
+		if err != nil {
+			logger.LOG.Error("parse client version error: %v", err)
+			return
+		}
+		for i := 0; i < len(versionSlice)-1-index; i++ {
+			v *= 10
+		}
+		version += v
+	}
+	if version >= 1000 {
+		// 测试版本
+		version /= 10
+	}
+	if version >= 275 {
 		logger.LOG.Debug("do genshin 2.8 rsa logic")
 		if context.Query("dispatchSeed") == "" {
 			rsp := &api.QueryCurRegionRspJson{
@@ -48,11 +71,10 @@ func (c *Controller) query_cur_region(context *gin.Context) {
 		var encPubPrivKey []byte = nil
 		if keyId == "3" {
 			// 国际服
-			encPubPrivKey = c.encRsaKey
+			encPubPrivKey = c.osEncRsaKey
 		} else {
 			// 国服
-			logger.LOG.Error("current region enc key not exist")
-			return
+			encPubPrivKey = c.cnEncRsaKey
 		}
 		regionInfo, err := base64.StdEncoding.DecodeString(response)
 		if err != nil {

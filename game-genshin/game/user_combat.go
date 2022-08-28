@@ -1,14 +1,13 @@
 package game
 
 import (
-	"flswld.com/gate-genshin-api/api"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	"game-genshin/model"
 	pb "google.golang.org/protobuf/proto"
 )
 
-func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	//logger.LOG.Debug("user combat invocations, user id: %v", userId)
 	req := payloadMsg.(*proto.CombatInvocationsNotify)
 	player := g.userManager.GetOnlineUser(userId)
@@ -39,19 +38,21 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *api.Packet
 
 			motionInfo := entityMoveInfo.MotionInfo
 
+			if motionInfo.Pos == nil || motionInfo.Rot == nil {
+				continue
+			}
+
 			sceneEntity := scene.GetEntity(entityMoveInfo.EntityId)
 			if sceneEntity != nil {
-				if motionInfo.Pos != nil && motionInfo.Rot != nil {
-					sceneEntity.pos = &model.Vector{
-						X: float64(motionInfo.Pos.X),
-						Y: float64(motionInfo.Pos.Y),
-						Z: float64(motionInfo.Pos.Z),
-					}
-					sceneEntity.rot = &model.Vector{
-						X: float64(motionInfo.Rot.X),
-						Y: float64(motionInfo.Rot.Y),
-						Z: float64(motionInfo.Rot.Z),
-					}
+				sceneEntity.pos = &model.Vector{
+					X: float64(motionInfo.Pos.X),
+					Y: float64(motionInfo.Pos.Y),
+					Z: float64(motionInfo.Pos.Z),
+				}
+				sceneEntity.rot = &model.Vector{
+					X: float64(motionInfo.Rot.X),
+					Y: float64(motionInfo.Rot.Y),
+					Z: float64(motionInfo.Rot.Z),
 				}
 				sceneEntity.moveState = uint16(motionInfo.State)
 				sceneEntity.lastMoveSceneTimeMs = entityMoveInfo.SceneTime
@@ -62,14 +63,28 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *api.Packet
 			playerTeamEntity := scene.GetPlayerTeamEntity(player.PlayerID)
 			if entityMoveInfo.EntityId == playerTeamEntity.avatarEntityMap[activeAvatarId] {
 				// 玩家在移动
-				if motionInfo.Pos != nil && motionInfo.Rot != nil {
-					player.Pos.X = float64(motionInfo.Pos.X)
-					player.Pos.Y = float64(motionInfo.Pos.Y)
-					player.Pos.Z = float64(motionInfo.Pos.Z)
-					player.Rot.X = float64(motionInfo.Rot.X)
-					player.Rot.Y = float64(motionInfo.Rot.Y)
-					player.Rot.Z = float64(motionInfo.Rot.Z)
+				team := player.TeamConfig.GetActiveTeam()
+				for _, avatarId := range team.AvatarIdList {
+					if avatarId == activeAvatarId {
+						continue
+					}
+					entityId := playerTeamEntity.avatarEntityMap[avatarId]
+					entity := scene.GetEntity(entityId)
+					if entity != nil {
+						entity.pos.X = float64(motionInfo.Pos.X)
+						entity.pos.Y = float64(motionInfo.Pos.Y)
+						entity.pos.Z = float64(motionInfo.Pos.Z)
+						entity.rot.X = float64(motionInfo.Rot.X)
+						entity.rot.Y = float64(motionInfo.Rot.Y)
+						entity.rot.Z = float64(motionInfo.Rot.Z)
+					}
 				}
+				player.Pos.X = float64(motionInfo.Pos.X)
+				player.Pos.Y = float64(motionInfo.Pos.Y)
+				player.Pos.Z = float64(motionInfo.Pos.Z)
+				player.Rot.X = float64(motionInfo.Rot.X)
+				player.Rot.Y = float64(motionInfo.Rot.Y)
+				player.Rot.Z = float64(motionInfo.Rot.Z)
 			}
 			invokeHandler.addEntry(entry.ForwardType, entry)
 		default:
@@ -82,7 +97,7 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *api.Packet
 		combatInvocationsNotify := new(proto.CombatInvocationsNotify)
 		combatInvocationsNotify.InvokeList = invokeHandler.entryListForwardAll
 		for _, v := range scene.playerMap {
-			g.SendMsg(api.ApiCombatInvocationsNotify, v.PlayerID, nil, combatInvocationsNotify)
+			g.SendMsg(proto.ApiCombatInvocationsNotify, v.PlayerID, nil, combatInvocationsNotify)
 		}
 	}
 	if invokeHandler.AllExceptCurLen() > 0 {
@@ -92,17 +107,17 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *api.Packet
 			if player.PlayerID == v.PlayerID {
 				continue
 			}
-			g.SendMsg(api.ApiCombatInvocationsNotify, v.PlayerID, nil, combatInvocationsNotify)
+			g.SendMsg(proto.ApiCombatInvocationsNotify, v.PlayerID, nil, combatInvocationsNotify)
 		}
 	}
 	if invokeHandler.HostLen() > 0 {
 		combatInvocationsNotify := new(proto.CombatInvocationsNotify)
 		combatInvocationsNotify.InvokeList = invokeHandler.entryListForwardHost
-		g.SendMsg(api.ApiCombatInvocationsNotify, world.owner.PlayerID, nil, combatInvocationsNotify)
+		g.SendMsg(proto.ApiCombatInvocationsNotify, world.owner.PlayerID, nil, combatInvocationsNotify)
 	}
 }
 
-func (g *GameManager) AbilityInvocationsNotify(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) AbilityInvocationsNotify(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	//logger.LOG.Debug("user ability invocations, user id: %v", userId)
 	req := payloadMsg.(*proto.AbilityInvocationsNotify)
 	player := g.userManager.GetOnlineUser(userId)
@@ -125,7 +140,7 @@ func (g *GameManager) AbilityInvocationsNotify(userId uint32, headMsg *api.Packe
 		abilityInvocationsNotify := new(proto.AbilityInvocationsNotify)
 		abilityInvocationsNotify.Invokes = invokeHandler.entryListForwardAll
 		for _, v := range scene.playerMap {
-			g.SendMsg(api.ApiAbilityInvocationsNotify, v.PlayerID, nil, abilityInvocationsNotify)
+			g.SendMsg(proto.ApiAbilityInvocationsNotify, v.PlayerID, nil, abilityInvocationsNotify)
 		}
 	}
 	if invokeHandler.AllExceptCurLen() > 0 {
@@ -135,17 +150,17 @@ func (g *GameManager) AbilityInvocationsNotify(userId uint32, headMsg *api.Packe
 			if player.PlayerID == v.PlayerID {
 				continue
 			}
-			g.SendMsg(api.ApiAbilityInvocationsNotify, v.PlayerID, nil, abilityInvocationsNotify)
+			g.SendMsg(proto.ApiAbilityInvocationsNotify, v.PlayerID, nil, abilityInvocationsNotify)
 		}
 	}
 	if invokeHandler.HostLen() > 0 {
 		abilityInvocationsNotify := new(proto.AbilityInvocationsNotify)
 		abilityInvocationsNotify.Invokes = invokeHandler.entryListForwardHost
-		g.SendMsg(api.ApiAbilityInvocationsNotify, world.owner.PlayerID, nil, abilityInvocationsNotify)
+		g.SendMsg(proto.ApiAbilityInvocationsNotify, world.owner.PlayerID, nil, abilityInvocationsNotify)
 	}
 }
 
-func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, headMsg *api.PacketHead, payloadMsg any) {
+func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
 	//logger.LOG.Debug("user client ability ok, user id: %v", userId)
 	req := payloadMsg.(*proto.ClientAbilityInitFinishNotify)
 	player := g.userManager.GetOnlineUser(userId)
@@ -168,7 +183,7 @@ func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, headMsg *api.
 		clientAbilityInitFinishNotify := new(proto.ClientAbilityInitFinishNotify)
 		clientAbilityInitFinishNotify.Invokes = invokeHandler.entryListForwardAll
 		for _, v := range scene.playerMap {
-			g.SendMsg(api.ApiClientAbilityInitFinishNotify, v.PlayerID, nil, clientAbilityInitFinishNotify)
+			g.SendMsg(proto.ApiClientAbilityInitFinishNotify, v.PlayerID, nil, clientAbilityInitFinishNotify)
 		}
 	}
 	if invokeHandler.AllExceptCurLen() > 0 {
@@ -178,13 +193,13 @@ func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, headMsg *api.
 			if player.PlayerID == v.PlayerID {
 				continue
 			}
-			g.SendMsg(api.ApiClientAbilityInitFinishNotify, v.PlayerID, nil, clientAbilityInitFinishNotify)
+			g.SendMsg(proto.ApiClientAbilityInitFinishNotify, v.PlayerID, nil, clientAbilityInitFinishNotify)
 		}
 	}
 	if invokeHandler.HostLen() > 0 {
 		clientAbilityInitFinishNotify := new(proto.ClientAbilityInitFinishNotify)
 		clientAbilityInitFinishNotify.Invokes = invokeHandler.entryListForwardHost
-		g.SendMsg(api.ApiClientAbilityInitFinishNotify, world.owner.PlayerID, nil, clientAbilityInitFinishNotify)
+		g.SendMsg(proto.ApiClientAbilityInitFinishNotify, world.owner.PlayerID, nil, clientAbilityInitFinishNotify)
 	}
 }
 

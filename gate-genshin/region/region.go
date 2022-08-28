@@ -3,30 +3,35 @@ package region
 import (
 	"encoding/base64"
 	"flswld.com/common/utils/endec"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	pb "google.golang.org/protobuf/proto"
 	"io/ioutil"
 )
 
-func LoadRsaKey() (signRsaKey []byte, encRsaKey []byte, pwdRsaKey []byte) {
+func LoadRsaKey() (signRsaKey []byte, osEncRsaKey []byte, cnEncRsaKey []byte, pwdRsaKey []byte) {
 	var err error = nil
 	signRsaKey, err = ioutil.ReadFile("static/curr_region_sign_key.pem")
 	if err != nil {
 		logger.LOG.Error("open curr_region_sign_key.pem error: %v", err)
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
-	encRsaKey, err = ioutil.ReadFile("static/curr_region_enc_key.pem")
+	osEncRsaKey, err = ioutil.ReadFile("static/os_region_enc_key.pem")
 	if err != nil {
-		logger.LOG.Error("open curr_region_enc_key.pem error: %v", err)
-		return nil, nil, nil
+		logger.LOG.Error("open os_region_enc_key.pem error: %v", err)
+		return nil, nil, nil, nil
+	}
+	cnEncRsaKey, err = ioutil.ReadFile("static/cn_region_enc_key.pem")
+	if err != nil {
+		logger.LOG.Error("open cn_region_enc_key.pem error: %v", err)
+		return nil, nil, nil, nil
 	}
 	pwdRsaKey, err = ioutil.ReadFile("static/account_password_key.pem")
 	if err != nil {
 		logger.LOG.Error("open account_password_key.pem error: %v", err)
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
-	return signRsaKey, encRsaKey, pwdRsaKey
+	return signRsaKey, osEncRsaKey, cnEncRsaKey, pwdRsaKey
 }
 
 func InitRegion(kcpAddr string, kcpPort int) (*proto.QueryCurrRegionHttpRsp, *proto.QueryRegionListHttpRsp) {

@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package proto;
-option go_package = "./;api";
-
-message PacketHead {
-  uint32 clientSequenceId = 3;
-  uint64 timestamp = 6;
-}

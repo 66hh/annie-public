@@ -2,8 +2,7 @@ package game
 
 import (
 	"flswld.com/common/utils/alg"
-	"flswld.com/gate-genshin-api/api"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	"game-genshin/constant"
 	"game-genshin/model"
@@ -299,12 +298,15 @@ func (s *Scene) AttackHandler(gameManager *GameManager) {
 		attackerId := attackResult.AttackerId
 		_ = attackerId
 		fightPropertyConst := constant.GetFightPropertyConst()
-		currHp := target.fightProp[uint32(fightPropertyConst.FIGHT_PROP_CUR_HP)]
-		currHp -= damage
-		if currHp < 0 {
-			currHp = 0
+		currHp := float32(0)
+		if target.fightProp != nil {
+			currHp = target.fightProp[uint32(fightPropertyConst.FIGHT_PROP_CUR_HP)]
+			currHp -= damage
+			if currHp < 0 {
+				currHp = 0
+			}
+			target.fightProp[uint32(fightPropertyConst.FIGHT_PROP_CUR_HP)] = currHp
 		}
-		target.fightProp[uint32(fightPropertyConst.FIGHT_PROP_CUR_HP)] = currHp
 
 		// PacketEntityFightPropUpdateNotify
 		entityFightPropUpdateNotify := new(proto.EntityFightPropUpdateNotify)
@@ -312,7 +314,7 @@ func (s *Scene) AttackHandler(gameManager *GameManager) {
 		entityFightPropUpdateNotify.FightPropMap = make(map[uint32]float32)
 		entityFightPropUpdateNotify.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CUR_HP)] = currHp
 		for _, player := range s.playerMap {
-			gameManager.SendMsg(api.ApiEntityFightPropUpdateNotify, player.PlayerID, nil, entityFightPropUpdateNotify)
+			gameManager.SendMsg(proto.ApiEntityFightPropUpdateNotify, player.PlayerID, nil, entityFightPropUpdateNotify)
 		}
 
 		combatData, err := pb.Marshal(hitInfo)
@@ -341,7 +343,7 @@ func (s *Scene) AttackHandler(gameManager *GameManager) {
 		combatInvocationsNotifyAll := new(proto.CombatInvocationsNotify)
 		combatInvocationsNotifyAll.InvokeList = combatInvokeEntryListAll
 		for _, player := range s.playerMap {
-			gameManager.SendMsg(api.ApiCombatInvocationsNotify, player.PlayerID, nil, combatInvocationsNotifyAll)
+			gameManager.SendMsg(proto.ApiCombatInvocationsNotify, player.PlayerID, nil, combatInvocationsNotifyAll)
 		}
 	}
 	if len(combatInvokeEntryListOther) > 0 {
@@ -352,13 +354,13 @@ func (s *Scene) AttackHandler(gameManager *GameManager) {
 				if player.PlayerID == uid {
 					continue
 				}
-				gameManager.SendMsg(api.ApiCombatInvocationsNotify, player.PlayerID, nil, combatInvocationsNotifyOther)
+				gameManager.SendMsg(proto.ApiCombatInvocationsNotify, player.PlayerID, nil, combatInvocationsNotifyOther)
 			}
 		}
 	}
 	if len(combatInvokeEntryListHost) > 0 {
 		combatInvocationsNotifyHost := new(proto.CombatInvocationsNotify)
 		combatInvocationsNotifyHost.InvokeList = combatInvokeEntryListHost
-		gameManager.SendMsg(api.ApiCombatInvocationsNotify, s.world.owner.PlayerID, nil, combatInvocationsNotifyHost)
+		gameManager.SendMsg(proto.ApiCombatInvocationsNotify, s.world.owner.PlayerID, nil, combatInvocationsNotifyHost)
 	}
 }

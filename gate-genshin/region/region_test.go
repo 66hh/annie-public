@@ -2,7 +2,7 @@ package region
 
 import (
 	"encoding/base64"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"fmt"
 	pb "google.golang.org/protobuf/proto"
 	"testing"

@@ -17,3 +17,6 @@ port = 10006
 
 [database]
 url = "mongodb://mongodb-service:27017"
+
+[mq]
+nats_url = "nats://nats-service:4222,nats://nats-service:4223,nats://nats-service:4224"

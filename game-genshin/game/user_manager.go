@@ -2,7 +2,7 @@ package game
 
 import (
 	"encoding/json"
-	"flswld.com/gate-genshin-api/api/proto"
+	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	"game-genshin/dao"
 	"game-genshin/model"
