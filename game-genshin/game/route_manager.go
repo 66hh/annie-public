@@ -6,7 +6,7 @@ import (
 	pb "google.golang.org/protobuf/proto"
 )
 
-type HandlerFunc func(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message)
+type HandlerFunc func(userId uint32, clientSeq uint32, payloadMsg pb.Message)
 
 type RouteManager struct {
 	gameManager *GameManager
@@ -25,13 +25,13 @@ func (r *RouteManager) registerRouter(apiId uint16, handlerFunc HandlerFunc) {
 	r.handlerFuncRouteMap[apiId] = handlerFunc
 }
 
-func (r *RouteManager) doRoute(apiId uint16, userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+func (r *RouteManager) doRoute(apiId uint16, userId uint32, clientSeq uint32, payloadMsg pb.Message) {
 	handlerFunc, ok := r.handlerFuncRouteMap[apiId]
 	if !ok {
 		logger.LOG.Error("no route for msg, apiId: %v", apiId)
 		return
 	}
-	handlerFunc(userId, headMsg, payloadMsg)
+	handlerFunc(userId, clientSeq, payloadMsg)
 }
 
 func (r *RouteManager) InitRoute() {
@@ -76,15 +76,21 @@ func (r *RouteManager) InitRoute() {
 	r.registerRouter(proto.ApiPlayerApplyEnterMpReq, r.gameManager.PlayerApplyEnterMpReq)                 // 世界敲门请求
 	r.registerRouter(proto.ApiPlayerApplyEnterMpResultReq, r.gameManager.PlayerApplyEnterMpResultReq)     // 世界敲门处理请求
 	r.registerRouter(proto.ApiPlayerGetForceQuitBanInfoReq, r.gameManager.PlayerGetForceQuitBanInfoReq)   // 退出世界请求
+	r.registerRouter(proto.ApiGetShopmallDataReq, r.gameManager.GetShopmallDataReq)                       // 商店信息请求
+	r.registerRouter(proto.ApiGetShopReq, r.gameManager.GetShopReq)                                       // 商店详情请求
+	r.registerRouter(proto.ApiBuyGoodsReq, r.gameManager.BuyGoodsReq)                                     // 商店货物购买请求
+	r.registerRouter(proto.ApiMcoinExchangeHcoinReq, r.gameManager.McoinExchangeHcoinReq)                 // 结晶换原石请求
+	r.registerRouter(proto.ApiAvatarChangeCostumeReq, r.gameManager.AvatarChangeCostumeReq)               // 角色换装请求
+	r.registerRouter(proto.ApiAvatarWearFlycloakReq, r.gameManager.AvatarWearFlycloakReq)                 // 角色换风之翼请求
 }
 
 func (r *RouteManager) RouteHandle(netMsg *proto.NetMsg) {
 	switch netMsg.EventId {
 	case proto.NormalMsg:
-		r.doRoute(netMsg.ApiId, netMsg.UserId, netMsg.HeadMessage, netMsg.PayloadMessage)
-	case proto.UserLogin:
-		r.gameManager.OnLogin(netMsg.UserId)
-	case proto.UserOffline:
+		r.doRoute(netMsg.ApiId, netMsg.UserId, netMsg.ClientSeq, netMsg.PayloadMessage)
+	case proto.UserLoginNotify:
+		r.gameManager.OnLogin(netMsg.UserId, netMsg.ClientSeq)
+	case proto.UserOfflineNotify:
 		r.gameManager.OnUserOffline(netMsg.UserId)
 	case proto.ClientRttNotify:
 		r.gameManager.ClientRttNotify(netMsg.UserId, netMsg.ClientRtt)

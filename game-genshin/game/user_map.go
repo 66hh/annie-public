@@ -9,8 +9,14 @@ import (
 	"strconv"
 )
 
-func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+func (g *GameManager) SceneTransToPointReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get scene trans to point, user id: %v", userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
+	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.SceneTransToPointReq)
 
 	transPointId := strconv.Itoa(int(req.SceneId)) + "_" + strconv.Itoa(int(req.PointId))
@@ -20,17 +26,11 @@ func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *proto.PacketH
 		sceneTransToPointRsp := new(proto.SceneTransToPointRsp)
 		// TODO Retcode.proto
 		sceneTransToPointRsp.Retcode = 1 // RET_SVR_ERROR_VALUE
-		g.SendMsg(proto.ApiSceneTransToPointRsp, userId, nil, sceneTransToPointRsp)
+		g.SendMsg(proto.ApiSceneTransToPointRsp, userId, player.ClientSeq, sceneTransToPointRsp)
 		return
 	}
 
 	// 传送玩家
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-
 	oldSceneId := player.SceneId
 	newSceneId := req.SceneId
 
@@ -70,7 +70,7 @@ func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *proto.PacketH
 	}
 	enterReasonConst := constant.GetEnterReasonConst()
 	playerEnterSceneNotify := g.PacketPlayerEnterSceneNotifyTp(player, enterType, uint32(enterReasonConst.TransPoint), newSceneId, player.Pos)
-	g.SendMsg(proto.ApiPlayerEnterSceneNotify, userId, nil, playerEnterSceneNotify)
+	g.SendMsg(proto.ApiPlayerEnterSceneNotify, userId, player.ClientSeq, playerEnterSceneNotify)
 	//g.userManager.UpdateUser(player)
 
 	// PacketSceneTransToPointRsp
@@ -78,11 +78,17 @@ func (g *GameManager) SceneTransToPointReq(userId uint32, headMsg *proto.PacketH
 	sceneTransToPointRsp.Retcode = 0
 	sceneTransToPointRsp.PointId = req.PointId
 	sceneTransToPointRsp.SceneId = req.SceneId
-	g.SendMsg(proto.ApiSceneTransToPointRsp, userId, nil, sceneTransToPointRsp)
+	g.SendMsg(proto.ApiSceneTransToPointRsp, userId, player.ClientSeq, sceneTransToPointRsp)
 }
 
-func (g *GameManager) MarkMapReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+func (g *GameManager) MarkMapReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user mark map, user id: %v", userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
+	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.MarkMapReq)
 	operation := req.Op
 	if operation == proto.MarkMapReq_OPERATION_ADD {
@@ -95,12 +101,6 @@ func (g *GameManager) MarkMapReq(userId uint32, headMsg *proto.PacketHead, paylo
 			}
 
 			// 传送玩家
-			player := g.userManager.GetOnlineUser(userId)
-			if player == nil {
-				logger.LOG.Error("player is nil, userId: %v", userId)
-				return
-			}
-
 			oldSceneId := player.SceneId
 			newSceneId := req.Mark.SceneId
 
@@ -145,7 +145,7 @@ func (g *GameManager) MarkMapReq(userId uint32, headMsg *proto.PacketHead, paylo
 			}
 			enterReasonConst := constant.GetEnterReasonConst()
 			playerEnterSceneNotify := g.PacketPlayerEnterSceneNotifyTp(player, enterType, uint32(enterReasonConst.TransPoint), newSceneId, player.Pos)
-			g.SendMsg(proto.ApiPlayerEnterSceneNotify, userId, nil, playerEnterSceneNotify)
+			g.SendMsg(proto.ApiPlayerEnterSceneNotify, userId, player.ClientSeq, playerEnterSceneNotify)
 			//g.userManager.UpdateUser(player)
 		}
 	}

@@ -11,34 +11,22 @@ import (
 	"time"
 )
 
-func (g *GameManager) OnLogin(userId uint32) {
+func (g *GameManager) OnLogin(userId uint32, clientSeq uint32) {
 	logger.LOG.Info("user login, user id: %v", userId)
-	player, asyncWait := g.userManager.OnlineUser(userId)
+	player, asyncWait := g.userManager.OnlineUser(userId, clientSeq)
 	if !asyncWait {
-		g.OnLoginOk(userId, player)
+		g.OnLoginOk(userId, player, clientSeq)
 	}
 }
 
-func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
+func (g *GameManager) OnLoginOk(userId uint32, player *model.Player, clientSeq uint32) {
 	if player == nil {
-		g.SendMsg(proto.ApiDoSetPlayerBornDataNotify, userId, nil, new(proto.NullMsg))
+		g.SendMsg(proto.ApiDoSetPlayerBornDataNotify, userId, clientSeq, new(proto.NullMsg))
 		return
 	}
-	{
-		// TODO 3.0.0REL版本目前存在当前队伍活跃角色非主角登录进不去场景的情况
-		activeAvatarId := player.TeamConfig.GetActiveAvatarId()
-		if activeAvatarId != player.MainCharAvatarId {
-			activeTeam := player.TeamConfig.GetActiveTeam()
-			mainCharIndex := player.TeamConfig.CurrAvatarIndex
-			for index, avatarId := range activeTeam.AvatarIdList {
-				if avatarId == player.MainCharAvatarId {
-					mainCharIndex = uint8(index)
-				}
-			}
-			activeTeam.AvatarIdList[mainCharIndex] = player.MainCharAvatarId
-			player.TeamConfig.CurrAvatarIndex = mainCharIndex
-		}
-	}
+	// TODO 3.0.0REL版本 目前存在当前队伍活跃角色非主角时 登录进不去场景的情况 所以暂时先把四号队伍作为仅存在主角的保留队伍
+	player.TeamConfig.CurrTeamIndex = 3
+	player.TeamConfig.CurrAvatarIndex = 0
 	// 创建世界
 	player.Online = true
 	world := g.worldManager.CreateWorld(player, false)
@@ -68,7 +56,7 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 		propValue.Val = int64(v)
 		playerDataNotify.PropMap[uint32(k)] = propValue
 	}
-	g.SendMsg(proto.ApiPlayerDataNotify, userId, nil, playerDataNotify)
+	g.SendMsg(proto.ApiPlayerDataNotify, userId, clientSeq, playerDataNotify)
 
 	// PacketStoreWeightLimitNotify
 	storeWeightLimitNotify := new(proto.StoreWeightLimitNotify)
@@ -76,10 +64,10 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 	// TODO 原神背包容量限制 写到配置文件
 	storeWeightLimitNotify.WeightLimit = 30000
 	storeWeightLimitNotify.WeaponCountLimit = 2000
-	storeWeightLimitNotify.ReliquaryCountLimit = 2000
+	storeWeightLimitNotify.ReliquaryCountLimit = 1500
 	storeWeightLimitNotify.MaterialCountLimit = 2000
 	storeWeightLimitNotify.FurnitureCountLimit = 2000
-	g.SendMsg(proto.ApiStoreWeightLimitNotify, userId, nil, storeWeightLimitNotify)
+	g.SendMsg(proto.ApiStoreWeightLimitNotify, userId, clientSeq, storeWeightLimitNotify)
 
 	// PacketPlayerStoreNotify
 	playerStoreNotify := new(proto.PlayerStoreNotify)
@@ -164,7 +152,7 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 		}
 		playerStoreNotify.ItemList = append(playerStoreNotify.ItemList, pbItem)
 	}
-	g.SendMsg(proto.ApiPlayerStoreNotify, userId, nil, playerStoreNotify)
+	g.SendMsg(proto.ApiPlayerStoreNotify, userId, clientSeq, playerStoreNotify)
 
 	// PacketAvatarDataNotify
 	avatarDataNotify := new(proto.AvatarDataNotify)
@@ -192,13 +180,13 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 			TeamName:       team.Name,
 		}
 	}
-	g.SendMsg(proto.ApiAvatarDataNotify, userId, nil, avatarDataNotify)
+	g.SendMsg(proto.ApiAvatarDataNotify, userId, clientSeq, avatarDataNotify)
 
 	player.BornInScene = false
 
 	// PacketPlayerEnterSceneNotify
 	playerEnterSceneNotify := g.PacketPlayerEnterSceneNotify(player)
-	g.SendMsg(proto.ApiPlayerEnterSceneNotify, userId, nil, playerEnterSceneNotify)
+	g.SendMsg(proto.ApiPlayerEnterSceneNotify, userId, clientSeq, playerEnterSceneNotify)
 
 	//g.userManager.UpdateUser(player)
 
@@ -210,27 +198,24 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player) {
 	for _, v := range openStateConstMap {
 		openStateUpdateNotify.OpenStateMap[uint32(v.(uint16))] = 1
 	}
-	g.SendMsg(proto.ApiOpenStateUpdateNotify, userId, nil, openStateUpdateNotify)
+	g.SendMsg(proto.ApiOpenStateUpdateNotify, userId, clientSeq, openStateUpdateNotify)
 }
 
-func (g *GameManager) SetPlayerBornDataReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+func (g *GameManager) SetPlayerBornDataReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user set born data, user id: %v", userId)
-	if headMsg != nil {
-		logger.LOG.Debug("client sequence id: %v", headMsg.ClientSequenceId)
-	}
 	if payloadMsg == nil {
 		return
 	}
 	req := payloadMsg.(*proto.SetPlayerBornDataReq)
 	logger.LOG.Debug("avatar id: %v, nickname: %v", req.AvatarId, req.NickName)
 
-	exist, asyncWait := g.userManager.CheckUserExistOnReg(userId, req)
+	exist, asyncWait := g.userManager.CheckUserExistOnReg(userId, req, clientSeq)
 	if !asyncWait {
-		g.PlayerReg(exist, req, userId)
+		g.PlayerReg(exist, req, userId, clientSeq)
 	}
 }
 
-func (g *GameManager) PlayerReg(exist bool, req *proto.SetPlayerBornDataReq, userId uint32) {
+func (g *GameManager) PlayerReg(exist bool, req *proto.SetPlayerBornDataReq, userId uint32, clientSeq uint32) {
 	if exist {
 		logger.LOG.Error("recv set born data req, but user is already exist, userId: %v", userId)
 		return
@@ -285,8 +270,27 @@ func (g *GameManager) PlayerReg(exist bool, req *proto.SetPlayerBornDataReq, use
 
 	player.FlyCloakList = make([]uint32, 0)
 	player.FlyCloakList = append(player.FlyCloakList, 140001)
+	player.FlyCloakList = append(player.FlyCloakList, 140002)
+	player.FlyCloakList = append(player.FlyCloakList, 140003)
+	player.FlyCloakList = append(player.FlyCloakList, 140004)
+	player.FlyCloakList = append(player.FlyCloakList, 140005)
+	player.FlyCloakList = append(player.FlyCloakList, 140006)
+	player.FlyCloakList = append(player.FlyCloakList, 140007)
+	player.FlyCloakList = append(player.FlyCloakList, 140008)
+	player.FlyCloakList = append(player.FlyCloakList, 140009)
+	player.FlyCloakList = append(player.FlyCloakList, 140010)
 
 	player.CostumeList = make([]uint32, 0)
+	player.CostumeList = append(player.CostumeList, 200301)
+	player.CostumeList = append(player.CostumeList, 201401)
+	player.CostumeList = append(player.CostumeList, 202701)
+	player.CostumeList = append(player.CostumeList, 204201)
+	player.CostumeList = append(player.CostumeList, 200302)
+	player.CostumeList = append(player.CostumeList, 202101)
+	player.CostumeList = append(player.CostumeList, 204101)
+	player.CostumeList = append(player.CostumeList, 204501)
+	player.CostumeList = append(player.CostumeList, 201601)
+	player.CostumeList = append(player.CostumeList, 203101)
 
 	player.Pos = &model.Vector{X: 2747, Y: 194, Z: -1719}
 	player.Rot = &model.Vector{X: 0, Y: 307, Z: 0}
@@ -334,20 +338,20 @@ func (g *GameManager) PlayerReg(exist bool, req *proto.SetPlayerBornDataReq, use
 	// 角色装上初始武器
 	player.WearWeapon(mainCharAvatarId, weaponId)
 
-	player.TeamConfig = model.NewTeamInfo()
+	player.TeamConfig = model.NewTeamInfo(mainCharAvatarId)
 	player.TeamConfig.AddAvatarToTeam(mainCharAvatarId, 0)
 
 	player.DropInfo = model.NewDropInfo()
 
 	g.userManager.AddUser(player)
 
-	g.SendMsg(proto.ApiSetPlayerBornDataRsp, userId, nil, new(proto.NullMsg))
-	g.OnLogin(userId)
+	g.SendMsg(proto.ApiSetPlayerBornDataRsp, userId, clientSeq, new(proto.NullMsg))
+	g.OnLogin(userId, clientSeq)
 }
 
-func (g *GameManager) PlayerForceExitReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+func (g *GameManager) PlayerForceExitReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
 	// 告诉网关断开玩家的连接
-	g.SendMsg(proto.ApiPlayerForceExitRsp, userId, nil, new(proto.NullMsg))
+	g.SendMsg(proto.ApiPlayerForceExitRsp, userId, clientSeq, new(proto.NullMsg))
 	go func() {
 		time.Sleep(time.Second)
 		g.KickPlayer(userId)

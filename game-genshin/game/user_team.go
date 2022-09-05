@@ -9,16 +9,16 @@ import (
 	pb "google.golang.org/protobuf/proto"
 )
 
-func (g *GameManager) ChangeAvatarReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+func (g *GameManager) ChangeAvatarReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change avatar, user id: %v", userId)
-	req := payloadMsg.(*proto.ChangeAvatarReq)
-	targetAvatarGuid := req.Guid
-
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, userId: %v", userId)
 		return
 	}
+	player.ClientSeq = clientSeq
+	req := payloadMsg.(*proto.ChangeAvatarReq)
+	targetAvatarGuid := req.Guid
 
 	world := g.worldManager.GetWorldByID(player.WorldId)
 	scene := world.GetSceneById(player.SceneId)
@@ -55,35 +55,48 @@ func (g *GameManager) ChangeAvatarReq(userId uint32, headMsg *proto.PacketHead, 
 	sceneEntityDisappearNotify := new(proto.SceneEntityDisappearNotify)
 	sceneEntityDisappearNotify.DisappearType = proto.VisionType_VISION_TYPE_REPLACE
 	sceneEntityDisappearNotify.EntityList = []uint32{playerTeamEntity.avatarEntityMap[oldAvatarId]}
-	g.SendMsg(proto.ApiSceneEntityDisappearNotify, userId, nil, sceneEntityDisappearNotify)
+	g.SendMsg(proto.ApiSceneEntityDisappearNotify, userId, player.ClientSeq, sceneEntityDisappearNotify)
 
 	// PacketSceneEntityAppearNotify
 	sceneEntityAppearNotify := new(proto.SceneEntityAppearNotify)
-	sceneEntityDisappearNotify.DisappearType = proto.VisionType_VISION_TYPE_REPLACE
+	sceneEntityAppearNotify.AppearType = proto.VisionType_VISION_TYPE_REPLACE
 	sceneEntityAppearNotify.Param = playerTeamEntity.avatarEntityMap[oldAvatarId]
 	sceneEntityAppearNotify.EntityList = []*proto.SceneEntityInfo{g.PacketSceneEntityInfoAvatar(scene, player, player.TeamConfig.GetActiveAvatarId())}
-	g.SendMsg(proto.ApiSceneEntityAppearNotify, userId, nil, sceneEntityAppearNotify)
+	g.SendMsg(proto.ApiSceneEntityAppearNotify, userId, player.ClientSeq, sceneEntityAppearNotify)
 
 	// PacketChangeAvatarRsp
 	changeAvatarRsp := new(proto.ChangeAvatarRsp)
 	changeAvatarRsp.Retcode = int32(proto.Retcode_RETCODE_RET_SUCC)
 	changeAvatarRsp.CurGuid = targetAvatarGuid
-	g.SendMsg(proto.ApiChangeAvatarRsp, userId, nil, changeAvatarRsp)
+	g.SendMsg(proto.ApiChangeAvatarRsp, userId, player.ClientSeq, changeAvatarRsp)
 }
 
-func (g *GameManager) SetUpAvatarTeamReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+func (g *GameManager) SetUpAvatarTeamReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user set up avatar team, user id: %v", userId)
-	req := payloadMsg.(*proto.SetUpAvatarTeamReq)
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, userId: %v", userId)
 		return
 	}
+	player.ClientSeq = clientSeq
+	req := payloadMsg.(*proto.SetUpAvatarTeamReq)
+
 	teamId := req.TeamId
+	if teamId <= 0 || teamId >= 5 || teamId == 4 {
+		// PacketSetUpAvatarTeamRsp
+		setUpAvatarTeamRsp := new(proto.SetUpAvatarTeamRsp)
+		setUpAvatarTeamRsp.Retcode = int32(proto.Retcode_RETCODE_RET_SVR_ERROR)
+		g.SendMsg(proto.ApiSetUpAvatarTeamRsp, userId, player.ClientSeq, setUpAvatarTeamRsp)
+		return
+	}
 	avatarGuidList := req.AvatarTeamGuidList
 	world := g.worldManager.GetWorldByID(player.WorldId)
 	selfTeam := teamId == uint32(player.TeamConfig.GetActiveTeamId())
 	if (selfTeam && len(avatarGuidList) == 0) || len(avatarGuidList) > 4 || world.multiplayer {
+		// PacketSetUpAvatarTeamRsp
+		setUpAvatarTeamRsp := new(proto.SetUpAvatarTeamRsp)
+		setUpAvatarTeamRsp.Retcode = int32(proto.Retcode_RETCODE_RET_SVR_ERROR)
+		g.SendMsg(proto.ApiSetUpAvatarTeamRsp, userId, player.ClientSeq, setUpAvatarTeamRsp)
 		return
 	}
 	avatarIdList := make([]uint32, 0)
@@ -98,8 +111,13 @@ func (g *GameManager) SetUpAvatarTeamReq(userId uint32, headMsg *proto.PacketHea
 	for _, avatarId := range avatarIdList {
 		player.TeamConfig.AddAvatarToTeam(avatarId, uint8(teamId-1))
 	}
+
 	if world.multiplayer {
 		// TODO 多人世界队伍
+		// PacketSetUpAvatarTeamRsp
+		setUpAvatarTeamRsp := new(proto.SetUpAvatarTeamRsp)
+		setUpAvatarTeamRsp.Retcode = int32(proto.Retcode_RETCODE_RET_SVR_ERROR)
+		g.SendMsg(proto.ApiSetUpAvatarTeamRsp, userId, player.ClientSeq, setUpAvatarTeamRsp)
 	} else {
 		// PacketAvatarTeamUpdateNotify
 		avatarTeamUpdateNotify := new(proto.AvatarTeamUpdateNotify)
@@ -115,7 +133,7 @@ func (g *GameManager) SetUpAvatarTeamReq(userId uint32, headMsg *proto.PacketHea
 			}
 			avatarTeamUpdateNotify.AvatarTeamMap[uint32(teamIndex)+1] = avatarTeam
 		}
-		g.SendMsg(proto.ApiAvatarTeamUpdateNotify, userId, nil, avatarTeamUpdateNotify)
+		g.SendMsg(proto.ApiAvatarTeamUpdateNotify, userId, player.ClientSeq, avatarTeamUpdateNotify)
 
 		if selfTeam {
 			player.TeamConfig.CurrAvatarIndex = 0
@@ -125,7 +143,7 @@ func (g *GameManager) SetUpAvatarTeamReq(userId uint32, headMsg *proto.PacketHea
 			// TODO 还有一大堆没写 SceneTeamUpdateNotify
 			// PacketSceneTeamUpdateNotify
 			sceneTeamUpdateNotify := g.PacketSceneTeamUpdateNotify(world)
-			g.SendMsg(proto.ApiSceneTeamUpdateNotify, userId, nil, sceneTeamUpdateNotify)
+			g.SendMsg(proto.ApiSceneTeamUpdateNotify, userId, player.ClientSeq, sceneTeamUpdateNotify)
 
 			// PacketSetUpAvatarTeamRsp
 			setUpAvatarTeamRsp := new(proto.SetUpAvatarTeamRsp)
@@ -138,7 +156,7 @@ func (g *GameManager) SetUpAvatarTeamReq(userId uint32, headMsg *proto.PacketHea
 				}
 				setUpAvatarTeamRsp.AvatarTeamGuidList = append(setUpAvatarTeamRsp.AvatarTeamGuidList, player.AvatarMap[avatarId].Guid)
 			}
-			g.SendMsg(proto.ApiSetUpAvatarTeamRsp, userId, nil, setUpAvatarTeamRsp)
+			g.SendMsg(proto.ApiSetUpAvatarTeamRsp, userId, player.ClientSeq, setUpAvatarTeamRsp)
 		} else {
 			// PacketSetUpAvatarTeamRsp
 			setUpAvatarTeamRsp := new(proto.SetUpAvatarTeamRsp)
@@ -151,20 +169,21 @@ func (g *GameManager) SetUpAvatarTeamReq(userId uint32, headMsg *proto.PacketHea
 				}
 				setUpAvatarTeamRsp.AvatarTeamGuidList = append(setUpAvatarTeamRsp.AvatarTeamGuidList, player.AvatarMap[avatarId].Guid)
 			}
-			g.SendMsg(proto.ApiSetUpAvatarTeamRsp, userId, nil, setUpAvatarTeamRsp)
+			g.SendMsg(proto.ApiSetUpAvatarTeamRsp, userId, player.ClientSeq, setUpAvatarTeamRsp)
 		}
 	}
 }
 
-func (g *GameManager) ChooseCurAvatarTeamReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+func (g *GameManager) ChooseCurAvatarTeamReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user switch team, user id: %v", userId)
-	req := payloadMsg.(*proto.ChooseCurAvatarTeamReq)
-	teamId := req.TeamId
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, userId: %v", userId)
 		return
 	}
+	player.ClientSeq = clientSeq
+	req := payloadMsg.(*proto.ChooseCurAvatarTeamReq)
+	teamId := req.TeamId
 	world := g.worldManager.GetWorldByID(player.WorldId)
 	if world.multiplayer {
 		return
@@ -182,12 +201,12 @@ func (g *GameManager) ChooseCurAvatarTeamReq(userId uint32, headMsg *proto.Packe
 	// TODO 还有一大堆没写 SceneTeamUpdateNotify
 	// PacketSceneTeamUpdateNotify
 	sceneTeamUpdateNotify := g.PacketSceneTeamUpdateNotify(world)
-	g.SendMsg(proto.ApiSceneTeamUpdateNotify, userId, nil, sceneTeamUpdateNotify)
+	g.SendMsg(proto.ApiSceneTeamUpdateNotify, userId, player.ClientSeq, sceneTeamUpdateNotify)
 
 	// PacketChooseCurAvatarTeamRsp
 	chooseCurAvatarTeamRsp := new(proto.ChooseCurAvatarTeamRsp)
 	chooseCurAvatarTeamRsp.CurTeamId = teamId
-	g.SendMsg(proto.ApiChooseCurAvatarTeamRsp, userId, nil, chooseCurAvatarTeamRsp)
+	g.SendMsg(proto.ApiChooseCurAvatarTeamRsp, userId, player.ClientSeq, chooseCurAvatarTeamRsp)
 }
 
 func (g *GameManager) PacketSceneTeamUpdateNotify(world *World) *proto.SceneTeamUpdateNotify {
@@ -223,7 +242,7 @@ func (g *GameManager) PacketSceneTeamUpdateNotify(world *World) *proto.SceneTeam
 				WeaponAbilityInfo:   empty,
 				AbilityControlBlock: new(proto.AbilityControlBlock),
 			}
-			if world.multiplayer {
+			if world.multiplayer || true {
 				sceneTeamAvatar.AvatarInfo = g.PacketAvatarInfo(worldPlayerAvatar)
 				sceneTeamAvatar.SceneAvatarInfo = g.PacketSceneAvatarInfo(worldPlayerScene, worldPlayer, avatarId)
 			}

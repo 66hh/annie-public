@@ -71,6 +71,7 @@ func (a *ApiProtoMap) registerAllMessage() {
 	a.registerMessage(ApiGetPlayerTokenRsp, &GetPlayerTokenRsp{})                           // 获取玩家token响应
 	a.registerMessage(ApiPlayerLoginRsp, &PlayerLoginRsp{})                                 // 玩家登录响应
 	a.registerMessage(ApiPingRsp, &PingRsp{})                                               // ping响应
+	a.registerMessage(ApiPlayerSetPauseRsp, &PlayerSetPauseRsp{})                           // 玩家暂停响应
 	a.registerMessage(ApiPlayerDataNotify, &PlayerDataNotify{})                             // 玩家信息通知
 	a.registerMessage(ApiStoreWeightLimitNotify, &StoreWeightLimitNotify{})                 // 通知
 	a.registerMessage(ApiPlayerStoreNotify, &PlayerStoreNotify{})                           // 通知
@@ -148,6 +149,20 @@ func (a *ApiProtoMap) registerAllMessage() {
 	a.registerMessage(ApiPlayerApplyEnterMpResultRsp, &PlayerApplyEnterMpResultRsp{})       // 世界敲门处理响应
 	a.registerMessage(ApiPlayerApplyEnterMpResultNotify, &PlayerApplyEnterMpResultNotify{}) // 世界敲门处理通知
 	a.registerMessage(ApiPlayerGetForceQuitBanInfoRsp, &PlayerGetForceQuitBanInfoRsp{})     // 退出世界响应
+	a.registerMessage(ApiGetShopmallDataReq, &GetShopmallDataReq{})                         // 商店信息请求
+	a.registerMessage(ApiGetShopmallDataRsp, &GetShopmallDataRsp{})                         // 商店信息响应
+	a.registerMessage(ApiGetShopReq, &GetShopReq{})                                         // 商店详情请求
+	a.registerMessage(ApiGetShopRsp, &GetShopRsp{})                                         // 商店详情响应
+	a.registerMessage(ApiBuyGoodsReq, &BuyGoodsReq{})                                       // 商店货物购买请求
+	a.registerMessage(ApiBuyGoodsRsp, &BuyGoodsRsp{})                                       // 商店货物购买响应
+	a.registerMessage(ApiMcoinExchangeHcoinReq, &McoinExchangeHcoinReq{})                   // 结晶换原石请求
+	a.registerMessage(ApiMcoinExchangeHcoinRsp, &McoinExchangeHcoinRsp{})                   // 结晶换原石响应
+	a.registerMessage(ApiAvatarChangeCostumeReq, &AvatarChangeCostumeReq{})                 // 角色换装请求
+	a.registerMessage(ApiAvatarChangeCostumeRsp, &AvatarChangeCostumeRsp{})                 // 角色换装响应
+	a.registerMessage(ApiAvatarChangeCostumeNotify, &AvatarChangeCostumeNotify{})           // 角色换装通知
+	a.registerMessage(ApiAvatarWearFlycloakReq, &AvatarWearFlycloakReq{})                   // 角色换风之翼请求
+	a.registerMessage(ApiAvatarWearFlycloakRsp, &AvatarWearFlycloakRsp{})                   // 角色换风之翼响应
+	a.registerMessage(ApiAvatarFlycloakChangeNotify, &AvatarFlycloakChangeNotify{})         // 角色换风之翼通知
 	// 尚未得知的客户端上行消息
 	a.registerMessage(ApiClientAbilityChangeNotify, &ClientAbilityChangeNotify{})             // 未知
 	a.registerMessage(ApiEvtAiSyncSkillCdNotify, &EvtAiSyncSkillCdNotify{})                   // 未知

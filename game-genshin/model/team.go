@@ -19,13 +19,13 @@ type TeamInfo struct {
 	TeamResonancesConfig map[int32]bool  `bson:"-"`
 }
 
-func NewTeamInfo() (r *TeamInfo) {
+func NewTeamInfo(mainCharAvatarId uint32) (r *TeamInfo) {
 	r = &TeamInfo{
 		TeamList: []*Team{
 			{Name: "冒险", AvatarIdList: make([]uint32, 4)},
 			{Name: "委托", AvatarIdList: make([]uint32, 4)},
 			{Name: "秘境", AvatarIdList: make([]uint32, 4)},
-			{Name: "深渊", AvatarIdList: make([]uint32, 4)},
+			{Name: "LOGIN_INIT", AvatarIdList: []uint32{mainCharAvatarId, 0, 0, 0}},
 		},
 		CurrTeamIndex:   0,
 		CurrAvatarIndex: 0,

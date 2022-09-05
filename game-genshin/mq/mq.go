@@ -57,14 +57,6 @@ func (m *MessageQueue) startRecvHandler() {
 			continue
 		}
 		if netMsg.EventId == proto.NormalMsg {
-			// protobuf HeadMessage
-			headMessage := new(proto.PacketHead)
-			err = pb.Unmarshal(netMsg.HeadMessageData, headMessage)
-			if err != nil {
-				logger.LOG.Error("parse bin to head msg error: %v", err)
-				continue
-			}
-			netMsg.HeadMessage = headMessage
 			// protobuf PayloadMessage
 			payloadMessage := m.apiProtoMap.GetProtoObjByApiId(netMsg.ApiId)
 			err = pb.Unmarshal(netMsg.PayloadMessageData, payloadMessage)
@@ -81,13 +73,6 @@ func (m *MessageQueue) startRecvHandler() {
 func (m *MessageQueue) startSendHandler() {
 	for {
 		netMsg := <-m.netMsgInput
-		// protobuf HeadMessage
-		headMessageData, err := pb.Marshal(netMsg.HeadMessage)
-		if err != nil {
-			logger.LOG.Error("parse head msg to bin error: %v", err)
-			continue
-		}
-		netMsg.HeadMessageData = headMessageData
 		// protobuf PayloadMessage 已在上一层完成
 		// msgpack NetMsg
 		netMsgData, err := msgpack.Marshal(netMsg)

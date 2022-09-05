@@ -52,12 +52,13 @@ func (u *UserManager) GetOnlineUser(userId uint32) *model.Player {
 }
 
 type PlayerRegInfo struct {
-	Exist  bool
-	Req    *proto.SetPlayerBornDataReq
-	UserId uint32
+	Exist     bool
+	Req       *proto.SetPlayerBornDataReq
+	UserId    uint32
+	ClientSeq uint32
 }
 
-func (u *UserManager) CheckUserExistOnReg(userId uint32, req *proto.SetPlayerBornDataReq) (exist bool, asyncWait bool) {
+func (u *UserManager) CheckUserExistOnReg(userId uint32, req *proto.SetPlayerBornDataReq, clientSeq uint32) (exist bool, asyncWait bool) {
 	u.playerMapLock.RLock()
 	_, exist = u.playerMap[userId]
 	u.playerMapLock.RUnlock()
@@ -73,9 +74,10 @@ func (u *UserManager) CheckUserExistOnReg(userId uint32, req *proto.SetPlayerBor
 			u.localEventChan <- &LocalEvent{
 				EventId: CheckUserExistOnRegFromDbFinish,
 				Msg: &PlayerRegInfo{
-					Exist:  exist,
-					Req:    req,
-					UserId: userId,
+					Exist:     exist,
+					Req:       req,
+					UserId:    userId,
+					ClientSeq: clientSeq,
 				},
 			}
 		}()
@@ -142,11 +144,12 @@ func (u *UserManager) UpdateUser(player *model.Player) {
 }
 
 type PlayerLoginInfo struct {
-	UserId uint32
-	Player *model.Player
+	UserId    uint32
+	Player    *model.Player
+	ClientSeq uint32
 }
 
-func (u *UserManager) OnlineUser(userId uint32) (*model.Player, bool) {
+func (u *UserManager) OnlineUser(userId uint32, clientSeq uint32) (*model.Player, bool) {
 	u.playerMapLock.RLock()
 	player, exist := u.playerMap[userId]
 	u.playerMapLock.RUnlock()
@@ -165,8 +168,9 @@ func (u *UserManager) OnlineUser(userId uint32) (*model.Player, bool) {
 			u.localEventChan <- &LocalEvent{
 				EventId: LoadLoginUserFromDbFinish,
 				Msg: &PlayerLoginInfo{
-					UserId: userId,
-					Player: player,
+					UserId:    userId,
+					Player:    player,
+					ClientSeq: clientSeq,
 				},
 			}
 		}()

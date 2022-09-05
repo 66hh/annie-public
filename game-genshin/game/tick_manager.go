@@ -65,34 +65,40 @@ func (t *TickManager) onTickHour(now int64) {
 	logger.LOG.Info("on tick hour, time: %v", now)
 }
 
+func (t *TickManager) onTick10Minute(now int64) {
+	for _, world := range t.gameManager.worldManager.worldMap {
+		for _, player := range world.playerMap {
+			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 223, ChangeCount: 1}}, true, 0)
+			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 224, ChangeCount: 1}}, true, 0)
+		}
+	}
+}
+
 func (t *TickManager) onTickMinute(now int64) {
 	for _, world := range t.gameManager.worldManager.worldMap {
 		for _, player := range world.playerMap {
 			// 随机物品
-			itemDataConfig := t.gameManager.GetAllItemDataConfig()
+			allItemDataConfig := t.gameManager.GetAllItemDataConfig()
 			count := random.GetRandomInt32(0, 4)
 			i := int32(0)
-			for itemId, _ := range itemDataConfig {
+			itemTypeConst := constant.GetItemTypeConst()
+			for itemId := range allItemDataConfig {
+				itemDataConfig := allItemDataConfig[itemId]
+				// TODO 3.0.0REL版本中 发送某些无效家具 可能会导致客户端背包家具界面卡死
+				if itemDataConfig.ItemEnumType == itemTypeConst.ITEM_FURNITURE {
+					continue
+				}
 				num := random.GetRandomInt32(1, 9)
-				t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: uint32(itemId), ChangeCount: uint32(num)}}, true)
+				t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: uint32(itemId), ChangeCount: uint32(num)}}, true, 0)
 				i++
 				if i > count {
 					break
 				}
 			}
-			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 102, ChangeCount: 30}}, true)
-			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 201, ChangeCount: 10}}, true)
-			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 202, ChangeCount: 100}}, true)
-			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 203, ChangeCount: 10}}, true)
-		}
-	}
-}
-
-func (t *TickManager) onTick10Minute(now int64) {
-	for _, world := range t.gameManager.worldManager.worldMap {
-		for _, player := range world.playerMap {
-			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 223, ChangeCount: 1}}, true)
-			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 224, ChangeCount: 1}}, true)
+			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 102, ChangeCount: 30}}, true, 0)
+			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 201, ChangeCount: 10}}, true, 0)
+			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 202, ChangeCount: 100}}, true, 0)
+			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 203, ChangeCount: 10}}, true, 0)
 		}
 	}
 }
@@ -100,15 +106,6 @@ func (t *TickManager) onTick10Minute(now int64) {
 func (t *TickManager) onTick10Second(now int64) {
 	for _, world := range t.gameManager.worldManager.worldMap {
 		for _, player := range world.playerMap {
-			// PacketWorldPlayerRTTNotify
-			worldPlayerRTTNotify := new(proto.WorldPlayerRTTNotify)
-			worldPlayerRTTNotify.PlayerRttList = make([]*proto.PlayerRTTInfo, 0)
-			for _, worldPlayer := range world.playerMap {
-				playerRTTInfo := &proto.PlayerRTTInfo{Uid: worldPlayer.PlayerID, Rtt: worldPlayer.ClientRTT}
-				worldPlayerRTTNotify.PlayerRttList = append(worldPlayerRTTNotify.PlayerRttList, playerRTTInfo)
-			}
-			t.gameManager.SendMsg(proto.ApiWorldPlayerRTTNotify, player.PlayerID, nil, worldPlayerRTTNotify)
-
 			// TODO 测试
 			team := player.TeamConfig.GetActiveTeam()
 			for _, avatarId := range team.AvatarIdList {
@@ -150,7 +147,7 @@ func (t *TickManager) onTick5Second(now int64) {
 					}
 					worldPlayerLocationNotify.PlayerWorldLocList = append(worldPlayerLocationNotify.PlayerWorldLocList, playerWorldLocationInfo)
 				}
-				t.gameManager.SendMsg(proto.ApiWorldPlayerLocationNotify, player.PlayerID, nil, worldPlayerLocationNotify)
+				t.gameManager.SendMsg(proto.ApiWorldPlayerLocationNotify, player.PlayerID, 0, worldPlayerLocationNotify)
 
 				// PacketScenePlayerLocationNotify
 				scene := world.GetSceneById(player.SceneId)
@@ -172,7 +169,7 @@ func (t *TickManager) onTick5Second(now int64) {
 					}
 					scenePlayerLocationNotify.PlayerLocList = append(scenePlayerLocationNotify.PlayerLocList, playerLocationInfo)
 				}
-				t.gameManager.SendMsg(proto.ApiScenePlayerLocationNotify, player.PlayerID, nil, scenePlayerLocationNotify)
+				t.gameManager.SendMsg(proto.ApiScenePlayerLocationNotify, player.PlayerID, 0, scenePlayerLocationNotify)
 			}
 		}
 	}
@@ -180,7 +177,16 @@ func (t *TickManager) onTick5Second(now int64) {
 
 func (t *TickManager) onTickSecond(now int64) {
 	for _, world := range t.gameManager.worldManager.worldMap {
-		for _, _ = range world.playerMap {
+		for _, player := range world.playerMap {
+			// PacketWorldPlayerRTTNotify
+			worldPlayerRTTNotify := new(proto.WorldPlayerRTTNotify)
+			worldPlayerRTTNotify.PlayerRttList = make([]*proto.PlayerRTTInfo, 0)
+			for _, worldPlayer := range world.playerMap {
+				playerRTTInfo := &proto.PlayerRTTInfo{Uid: worldPlayer.PlayerID, Rtt: worldPlayer.ClientRTT}
+				worldPlayerRTTNotify.PlayerRttList = append(worldPlayerRTTNotify.PlayerRttList, playerRTTInfo)
+			}
+			t.gameManager.SendMsg(proto.ApiWorldPlayerRTTNotify, player.PlayerID, 0, worldPlayerRTTNotify)
+
 			// TODO 测试
 			scene := world.GetSceneById(3)
 			monsterEntityCount := 0
@@ -198,7 +204,7 @@ func (t *TickManager) onTickSecond(now int64) {
 				sceneEntityInfo := t.gameManager.PacketSceneEntityInfoMonster(scene, monsterEntityId)
 				sceneEntityAppearNotify.EntityList = []*proto.SceneEntityInfo{sceneEntityInfo}
 				for _, scenePlayer := range scene.playerMap {
-					t.gameManager.SendMsg(proto.ApiSceneEntityAppearNotify, scenePlayer.PlayerID, nil, sceneEntityAppearNotify)
+					t.gameManager.SendMsg(proto.ApiSceneEntityAppearNotify, scenePlayer.PlayerID, 0, sceneEntityAppearNotify)
 				}
 			}
 		}

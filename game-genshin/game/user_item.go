@@ -48,7 +48,7 @@ func (g *GameManager) GetAllItemDataConfig() map[int32]*gdc.ItemData {
 	return allItemDataConfig
 }
 
-func (g *GameManager) AddUserItem(userId uint32, itemList []*UserItem, isHint bool) {
+func (g *GameManager) AddUserItem(userId uint32, itemList []*UserItem, isHint bool, hintReason uint16) {
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, userId: %v", userId)
@@ -73,13 +73,16 @@ func (g *GameManager) AddUserItem(userId uint32, itemList []*UserItem, isHint bo
 		}
 		storeItemChangeNotify.ItemList = append(storeItemChangeNotify.ItemList, pbItem)
 	}
-	g.SendMsg(proto.ApiStoreItemChangeNotify, userId, nil, storeItemChangeNotify)
+	g.SendMsg(proto.ApiStoreItemChangeNotify, userId, player.ClientSeq, storeItemChangeNotify)
 
 	if isHint {
 		actionReasonConst := constant.GetActionReasonConst()
+		if hintReason == 0 {
+			hintReason = actionReasonConst.SubfieldDrop
+		}
 		// PacketItemAddHintNotify
 		itemAddHintNotify := new(proto.ItemAddHintNotify)
-		itemAddHintNotify.Reason = uint32(actionReasonConst.SubfieldDrop)
+		itemAddHintNotify.Reason = uint32(hintReason)
 		for _, userItem := range itemList {
 			itemAddHintNotify.ItemList = append(itemAddHintNotify.ItemList, &proto.ItemHint{
 				ItemId: userItem.ItemId,
@@ -87,7 +90,7 @@ func (g *GameManager) AddUserItem(userId uint32, itemList []*UserItem, isHint bo
 				IsNew:  false,
 			})
 		}
-		g.SendMsg(proto.ApiItemAddHintNotify, userId, nil, itemAddHintNotify)
+		g.SendMsg(proto.ApiItemAddHintNotify, userId, player.ClientSeq, itemAddHintNotify)
 	}
 
 	// PacketPlayerPropNotify
@@ -107,7 +110,7 @@ func (g *GameManager) AddUserItem(userId uint32, itemList []*UserItem, isHint bo
 		}
 	}
 	if len(playerPropNotify.PropMap) > 0 {
-		g.SendMsg(proto.ApiPlayerPropNotify, userId, nil, playerPropNotify)
+		g.SendMsg(proto.ApiPlayerPropNotify, userId, player.ClientSeq, playerPropNotify)
 	}
 }
 
@@ -141,7 +144,7 @@ func (g *GameManager) CostUserItem(userId uint32, itemList []*UserItem) {
 		storeItemChangeNotify.ItemList = append(storeItemChangeNotify.ItemList, pbItem)
 	}
 	if len(storeItemChangeNotify.ItemList) > 0 {
-		g.SendMsg(proto.ApiStoreItemChangeNotify, userId, nil, storeItemChangeNotify)
+		g.SendMsg(proto.ApiStoreItemChangeNotify, userId, player.ClientSeq, storeItemChangeNotify)
 	}
 
 	// PacketStoreItemDelNotify
@@ -155,7 +158,7 @@ func (g *GameManager) CostUserItem(userId uint32, itemList []*UserItem) {
 		storeItemDelNotify.GuidList = append(storeItemDelNotify.GuidList, player.GetItemGuid(userItem.ItemId))
 	}
 	if len(storeItemDelNotify.GuidList) > 0 {
-		g.SendMsg(proto.ApiStoreItemDelNotify, userId, nil, storeItemDelNotify)
+		g.SendMsg(proto.ApiStoreItemDelNotify, userId, player.ClientSeq, storeItemDelNotify)
 	}
 
 	// PacketPlayerPropNotify
@@ -175,6 +178,6 @@ func (g *GameManager) CostUserItem(userId uint32, itemList []*UserItem) {
 		}
 	}
 	if len(playerPropNotify.PropMap) > 0 {
-		g.SendMsg(proto.ApiPlayerPropNotify, userId, nil, playerPropNotify)
+		g.SendMsg(proto.ApiPlayerPropNotify, userId, player.ClientSeq, playerPropNotify)
 	}
 }

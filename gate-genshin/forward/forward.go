@@ -21,6 +21,10 @@ const (
 	ConnAlive
 )
 
+type ClientHeadMeta struct {
+	seq uint32
+}
+
 type ForwardManager struct {
 	dao            *dao.Dao
 	protoMsgInput  chan *net.ProtoMsg
@@ -39,16 +43,16 @@ type ForwardManager struct {
 	// kcpConv -> ipAddr
 	convAddrMap     map[uint64]string
 	convAddrMapLock sync.RWMutex
-	// kcpConv -> seq
-	convSeqMap      map[uint64]uint32
-	convSeqMapLock  sync.RWMutex
-	secretKeyBuffer []byte
-	kcpEventInput   chan *net.KcpEvent
-	kcpEventOutput  chan *net.KcpEvent
-	regionCurr      *proto.QueryCurrRegionHttpRsp
-	signRsaKey      []byte
-	osEncRsaKey     []byte
-	cnEncRsaKey     []byte
+	// kcpConv -> headMeta
+	convHeadMetaMap     map[uint64]*ClientHeadMeta
+	convHeadMetaMapLock sync.RWMutex
+	secretKeyBuffer     []byte
+	kcpEventInput       chan *net.KcpEvent
+	kcpEventOutput      chan *net.KcpEvent
+	regionCurr          *proto.QueryCurrRegionHttpRsp
+	signRsaKey          []byte
+	osEncRsaKey         []byte
+	cnEncRsaKey         []byte
 }
 
 func NewForwardManager(dao *dao.Dao,
@@ -65,22 +69,18 @@ func NewForwardManager(dao *dao.Dao,
 	r.convUserIdMap = make(map[uint64]uint32)
 	r.userIdConvMap = make(map[uint32]uint64)
 	r.convAddrMap = make(map[uint64]string)
-	r.convSeqMap = make(map[uint64]uint32)
+	r.convHeadMetaMap = make(map[uint64]*ClientHeadMeta)
 	r.kcpEventInput = kcpEventInput
 	r.kcpEventOutput = kcpEventOutput
 	return r
 }
 
-func (f *ForwardManager) getHeadMsg(convId uint64) (headMsg *proto.PacketHead) {
+func (f *ForwardManager) getHeadMsg(clientSeq uint32) (headMsg *proto.PacketHead) {
 	headMsg = new(proto.PacketHead)
-	seq, exist := f.getSeqByConvId(convId)
-	if !exist {
-		logger.LOG.Error("can not find seq by convId")
-		return nil
+	if clientSeq != 0 {
+		headMsg.ClientSequenceId = clientSeq
+		headMsg.SentMs = uint64(time.Now().UnixMilli())
 	}
-	f.setSeqByConvId(convId, seq+1)
-	headMsg.ClientSequenceId = seq
-	headMsg.SentMs = uint64(time.Now().UnixMilli())
 	return headMsg
 }
 
@@ -103,12 +103,15 @@ func (f *ForwardManager) kcpEventHandle() {
 				logger.LOG.Error("can not find userId by convId")
 				continue
 			}
+			headMeta, exist := f.getHeadMetaByConvId(event.ConvId)
+			if !exist {
+				logger.LOG.Error("can not find client head metadata by convId")
+				continue
+			}
 			netMsg := new(proto.NetMsg)
 			netMsg.UserId = userId
-			netMsg.EventId = proto.UserLogin
-			netMsg.ApiId = 0
-			netMsg.HeadMessage = nil
-			netMsg.PayloadMessage = nil
+			netMsg.EventId = proto.UserLoginNotify
+			netMsg.ClientSeq = headMeta.seq
 			f.netMsgInput <- netMsg
 			logger.LOG.Info("send to gs user login ok, ConvId: %v, UserId: %v", event.ConvId, netMsg.UserId)
 		case net.KcpConnCloseNotify:
@@ -122,10 +125,7 @@ func (f *ForwardManager) kcpEventHandle() {
 				// 通知GS玩家下线
 				netMsg := new(proto.NetMsg)
 				netMsg.UserId = userId
-				netMsg.EventId = proto.UserOffline
-				netMsg.ApiId = 0
-				netMsg.HeadMessage = nil
-				netMsg.PayloadMessage = nil
+				netMsg.EventId = proto.UserOfflineNotify
 				f.netMsgInput <- netMsg
 				logger.LOG.Info("send to gs user offline, ConvId: %v, UserId: %v", event.ConvId, netMsg.UserId)
 			}
@@ -138,7 +138,7 @@ func (f *ForwardManager) kcpEventHandle() {
 				f.deleteConvIdByUserId(userId)
 			}
 			f.deleteAddrByConvId(event.ConvId)
-			f.deleteSeqByConvId(event.ConvId)
+			f.deleteHeadMetaByConvId(event.ConvId)
 		case net.KcpConnEstNotify:
 			// 连接建立通知
 			addr, ok := event.EventMessage.(string)
@@ -147,7 +147,6 @@ func (f *ForwardManager) kcpEventHandle() {
 				continue
 			}
 			f.setAddrByConvId(event.ConvId, addr)
-			f.setSeqByConvId(event.ConvId, 1)
 		case net.KcpConnRttNotify:
 			// 客户端往返时延通知
 			rtt, ok := event.EventMessage.(int32)
@@ -164,9 +163,6 @@ func (f *ForwardManager) kcpEventHandle() {
 			netMsg := new(proto.NetMsg)
 			netMsg.UserId = userId
 			netMsg.EventId = proto.ClientRttNotify
-			netMsg.ApiId = 0
-			netMsg.HeadMessage = nil
-			netMsg.PayloadMessage = nil
 			netMsg.ClientRtt = uint32(rtt)
 			f.netMsgInput <- netMsg
 		case net.KcpConnAddrChangeNotify:
@@ -211,6 +207,12 @@ func (f *ForwardManager) Start() {
 func (f *ForwardManager) sendNetMsgToGameServer() {
 	for {
 		protoMsg := <-f.protoMsgOutput
+		if protoMsg.HeadMessage == nil {
+			logger.LOG.Error("recv null head msg: %v", protoMsg)
+		}
+		f.setHeadMetaByConvId(protoMsg.ConvId, &ClientHeadMeta{
+			seq: protoMsg.HeadMessage.ClientSequenceId,
+		})
 		connState := f.getConnState(protoMsg.ConvId)
 		// gate本地处理的请求
 		if protoMsg.ApiId == proto.ApiPingReq {
@@ -221,14 +223,14 @@ func (f *ForwardManager) sendNetMsgToGameServer() {
 			}
 			pingReq := protoMsg.PayloadMessage.(*proto.PingReq)
 			logger.LOG.Debug("user ping req, data: %v", pingReq.String())
+			// 返回数据到客户端
 			// TODO 记录客户端最后一次ping时间做超时下线处理
 			pingRsp := new(proto.PingRsp)
 			pingRsp.ClientTime = pingReq.ClientTime
-			// 返回数据到客户端
 			resp := new(net.ProtoMsg)
 			resp.ConvId = protoMsg.ConvId
 			resp.ApiId = proto.ApiPingRsp
-			resp.HeadMessage = f.getHeadMsg(protoMsg.ConvId)
+			resp.HeadMessage = f.getHeadMsg(protoMsg.HeadMessage.ClientSequenceId)
 			resp.PayloadMessage = pingRsp
 			f.protoMsgInput <- resp
 			// 通知GS玩家客户端的本地时钟
@@ -240,9 +242,6 @@ func (f *ForwardManager) sendNetMsgToGameServer() {
 			netMsg := new(proto.NetMsg)
 			netMsg.UserId = userId
 			netMsg.EventId = proto.ClientTimeNotify
-			netMsg.ApiId = 0
-			netMsg.HeadMessage = nil
-			netMsg.PayloadMessage = nil
 			netMsg.ClientTime = pingReq.ClientTime
 			f.netMsgInput <- netMsg
 		} else if protoMsg.ApiId == proto.ApiGetPlayerTokenReq {
@@ -265,7 +264,7 @@ func (f *ForwardManager) sendNetMsgToGameServer() {
 			resp := new(net.ProtoMsg)
 			resp.ConvId = protoMsg.ConvId
 			resp.ApiId = proto.ApiGetPlayerTokenRsp
-			resp.HeadMessage = f.getHeadMsg(protoMsg.ConvId)
+			resp.HeadMessage = f.getHeadMsg(protoMsg.HeadMessage.ClientSequenceId)
 			resp.PayloadMessage = getPlayerTokenRsp
 			f.protoMsgInput <- resp
 		} else if protoMsg.ApiId == proto.ApiPlayerLoginReq {
@@ -297,7 +296,7 @@ func (f *ForwardManager) sendNetMsgToGameServer() {
 				resp := new(net.ProtoMsg)
 				resp.ConvId = protoMsg.ConvId
 				resp.ApiId = proto.ApiPlayerLoginRsp
-				resp.HeadMessage = f.getHeadMsg(protoMsg.ConvId)
+				resp.HeadMessage = f.getHeadMsg(protoMsg.HeadMessage.ClientSequenceId)
 				resp.PayloadMessage = playerLoginRsp
 				f.protoMsgInput <- resp
 			}()
@@ -317,7 +316,7 @@ func (f *ForwardManager) sendNetMsgToGameServer() {
 			}
 			netMsg.EventId = proto.NormalMsg
 			netMsg.ApiId = protoMsg.ApiId
-			netMsg.HeadMessage = protoMsg.HeadMessage
+			netMsg.ClientSeq = protoMsg.HeadMessage.ClientSequenceId
 			netMsg.PayloadMessage = protoMsg.PayloadMessage
 			f.netMsgInput <- netMsg
 		}
@@ -328,22 +327,21 @@ func (f *ForwardManager) sendNetMsgToGameServer() {
 func (f *ForwardManager) recvNetMsgFromGameServer() {
 	for {
 		netMsg := <-f.netMsgOutput
+		convId, exist := f.getConvIdByUserId(netMsg.UserId)
+		if !exist {
+			logger.LOG.Error("can not find convId by userId")
+			continue
+		}
 		if netMsg.EventId == proto.NormalMsg {
 			protoMsg := new(net.ProtoMsg)
-			convId, exist := f.getConvIdByUserId(netMsg.UserId)
-			if exist {
-				protoMsg.ConvId = convId
-			} else {
-				logger.LOG.Error("can not find convId by userId")
-				continue
-			}
+			protoMsg.ConvId = convId
 			protoMsg.ApiId = netMsg.ApiId
-			protoMsg.HeadMessage = f.getHeadMsg(protoMsg.ConvId)
+			protoMsg.HeadMessage = f.getHeadMsg(netMsg.ClientSeq)
 			protoMsg.PayloadMessage = netMsg.PayloadMessage
 			f.protoMsgInput <- protoMsg
 			continue
 		} else {
-			logger.LOG.Info("recv event from game server, event id: %v", netMsg.EventId)
+			logger.LOG.Error("recv unknown event from game server, event id: %v", netMsg.EventId)
 			continue
 		}
 	}
@@ -431,23 +429,23 @@ func (f *ForwardManager) deleteAddrByConvId(convId uint64) {
 	f.convAddrMapLock.Unlock()
 }
 
-func (f *ForwardManager) getSeqByConvId(convId uint64) (seq uint32, exist bool) {
-	f.convSeqMapLock.RLock()
-	seq, exist = f.convSeqMap[convId]
-	f.convSeqMapLock.RUnlock()
-	return seq, exist
+func (f *ForwardManager) getHeadMetaByConvId(convId uint64) (headMeta *ClientHeadMeta, exist bool) {
+	f.convHeadMetaMapLock.RLock()
+	headMeta, exist = f.convHeadMetaMap[convId]
+	f.convHeadMetaMapLock.RUnlock()
+	return headMeta, exist
 }
 
-func (f *ForwardManager) setSeqByConvId(convId uint64, seq uint32) {
-	f.convSeqMapLock.Lock()
-	f.convSeqMap[convId] = seq
-	f.convSeqMapLock.Unlock()
+func (f *ForwardManager) setHeadMetaByConvId(convId uint64, headMeta *ClientHeadMeta) {
+	f.convHeadMetaMapLock.Lock()
+	f.convHeadMetaMap[convId] = headMeta
+	f.convHeadMetaMapLock.Unlock()
 }
 
-func (f *ForwardManager) deleteSeqByConvId(convId uint64) {
-	f.convSeqMapLock.Lock()
-	delete(f.convSeqMap, convId)
-	f.convSeqMapLock.Unlock()
+func (f *ForwardManager) deleteHeadMetaByConvId(convId uint64) {
+	f.convHeadMetaMapLock.Lock()
+	delete(f.convHeadMetaMap, convId)
+	f.convHeadMetaMapLock.Unlock()
 }
 
 // 改变网关开放状态

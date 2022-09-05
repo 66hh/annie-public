@@ -57,6 +57,7 @@ func (p *ProtoEnDecode) protoDecode(kcpMsg *KcpMsg) (protoMsgList []*ProtoMsg) {
 			msg := new(ProtoMsg)
 			msg.ConvId = kcpMsg.ConvId
 			msg.ApiId = protoMessage.apiId
+			msg.HeadMessage = protoMsg.HeadMessage
 			msg.PayloadMessage = protoMessage.message
 			//logger.LOG.Debug("[recv] union proto msg, convId: %v, apiId: %v", msg.ConvId, msg.ApiId)
 			if protoMessage.apiId == proto.ApiUnionCmdNotify {

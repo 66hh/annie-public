@@ -49,19 +49,20 @@ func (g *GameManager) AddUserAvatar(userId uint32, avatarId uint32) {
 	avatarAddNotify := new(proto.AvatarAddNotify)
 	avatarAddNotify.Avatar = g.PacketAvatarInfo(avatar)
 	avatarAddNotify.IsInTeam = false
-	g.SendMsg(proto.ApiAvatarAddNotify, userId, nil, avatarAddNotify)
+	g.SendMsg(proto.ApiAvatarAddNotify, userId, player.ClientSeq, avatarAddNotify)
 }
 
-func (g *GameManager) WearEquipReq(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+func (g *GameManager) WearEquipReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user wear equip, user id: %v", userId)
-	req := payloadMsg.(*proto.WearEquipReq)
-	avatarGuid := req.AvatarGuid
-	equipGuid := req.EquipGuid
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, userId: %v", userId)
 		return
 	}
+	player.ClientSeq = clientSeq
+	req := payloadMsg.(*proto.WearEquipReq)
+	avatarGuid := req.AvatarGuid
+	equipGuid := req.EquipGuid
 	avatar := player.GameObjectGuidMap[avatarGuid].(*model.Avatar)
 	weapon := player.GameObjectGuidMap[equipGuid].(*model.Weapon)
 	g.WearUserAvatarEquip(player.PlayerID, avatar.AvatarId, weapon.WeaponId)
@@ -70,7 +71,7 @@ func (g *GameManager) WearEquipReq(userId uint32, headMsg *proto.PacketHead, pay
 	wearEquipRsp := new(proto.WearEquipRsp)
 	wearEquipRsp.AvatarGuid = avatarGuid
 	wearEquipRsp.EquipGuid = equipGuid
-	g.SendMsg(proto.ApiWearEquipRsp, userId, nil, wearEquipRsp)
+	g.SendMsg(proto.ApiWearEquipRsp, userId, player.ClientSeq, wearEquipRsp)
 }
 
 func (g *GameManager) WearUserAvatarEquip(userId uint32, avatarId uint32, weaponId uint64) {
@@ -113,7 +114,7 @@ func (g *GameManager) WearUserAvatarEquip(userId uint32, avatarId uint32, weapon
 
 		// PacketAvatarEquipChangeNotify
 		avatarEquipChangeNotify := g.PacketAvatarEquipChangeNotify(weakAvatar, weakWeapon, playerTeamEntity.weaponEntityMap[weakWeapon.WeaponId])
-		g.SendMsg(proto.ApiAvatarEquipChangeNotify, userId, nil, avatarEquipChangeNotify)
+		g.SendMsg(proto.ApiAvatarEquipChangeNotify, userId, player.ClientSeq, avatarEquipChangeNotify)
 	} else if avatar.EquipWeapon != nil {
 		// 角色当前有武器
 		player.TakeOffWeapon(avatarId, avatar.EquipWeapon.WeaponId)
@@ -134,7 +135,95 @@ func (g *GameManager) WearUserAvatarEquip(userId uint32, avatarId uint32, weapon
 
 	// PacketAvatarEquipChangeNotify
 	avatarEquipChangeNotify := g.PacketAvatarEquipChangeNotify(avatar, weapon, playerTeamEntity.weaponEntityMap[weaponId])
-	g.SendMsg(proto.ApiAvatarEquipChangeNotify, userId, nil, avatarEquipChangeNotify)
+	g.SendMsg(proto.ApiAvatarEquipChangeNotify, userId, player.ClientSeq, avatarEquipChangeNotify)
+}
+
+func (g *GameManager) AvatarChangeCostumeReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+	logger.LOG.Debug("user change avatar costume, user id: %v", userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
+	player.ClientSeq = clientSeq
+	req := payloadMsg.(*proto.AvatarChangeCostumeReq)
+	avatarGuid := req.AvatarGuid
+	costumeId := req.CostumeId
+
+	exist := false
+	for _, v := range player.CostumeList {
+		if v == costumeId {
+			exist = true
+		}
+	}
+	if costumeId == 0 {
+		exist = true
+	}
+	if !exist {
+		return
+	}
+
+	avatar := player.GameObjectGuidMap[avatarGuid].(*model.Avatar)
+	avatar.Costume = req.CostumeId
+
+	world := g.worldManager.GetWorldByID(player.WorldId)
+	scene := world.GetSceneById(player.SceneId)
+
+	// PacketAvatarChangeCostumeNotify
+	avatarChangeCostumeNotify := new(proto.AvatarChangeCostumeNotify)
+	avatarChangeCostumeNotify.EntityInfo = g.PacketSceneEntityInfoAvatar(scene, player, avatar.AvatarId)
+	for _, scenePlayer := range scene.playerMap {
+		g.SendMsg(proto.ApiAvatarChangeCostumeNotify, scenePlayer.PlayerID, scenePlayer.ClientSeq, avatarChangeCostumeNotify)
+	}
+
+	// PacketAvatarChangeCostumeRsp
+	avatarChangeCostumeRsp := new(proto.AvatarChangeCostumeRsp)
+	avatarChangeCostumeRsp.AvatarGuid = req.AvatarGuid
+	avatarChangeCostumeRsp.CostumeId = req.CostumeId
+	g.SendMsg(proto.ApiAvatarChangeCostumeRsp, userId, player.ClientSeq, avatarChangeCostumeRsp)
+}
+
+func (g *GameManager) AvatarWearFlycloakReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+	logger.LOG.Debug("user change avatar fly cloak, user id: %v", userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
+	player.ClientSeq = clientSeq
+	req := payloadMsg.(*proto.AvatarWearFlycloakReq)
+	avatarGuid := req.AvatarGuid
+	flycloakId := req.FlycloakId
+
+	exist := false
+	for _, v := range player.FlyCloakList {
+		if v == flycloakId {
+			exist = true
+		}
+	}
+	if !exist {
+		return
+	}
+
+	avatar := player.GameObjectGuidMap[avatarGuid].(*model.Avatar)
+	avatar.FlyCloak = req.FlycloakId
+
+	world := g.worldManager.GetWorldByID(player.WorldId)
+	scene := world.GetSceneById(player.SceneId)
+
+	// PacketAvatarFlycloakChangeNotify
+	avatarFlycloakChangeNotify := new(proto.AvatarFlycloakChangeNotify)
+	avatarFlycloakChangeNotify.AvatarGuid = avatarGuid
+	avatarFlycloakChangeNotify.FlycloakId = flycloakId
+	for _, scenePlayer := range scene.playerMap {
+		g.SendMsg(proto.ApiAvatarFlycloakChangeNotify, scenePlayer.PlayerID, scenePlayer.ClientSeq, avatarFlycloakChangeNotify)
+	}
+
+	// PacketAvatarWearFlycloakRsp
+	avatarWearFlycloakRsp := new(proto.AvatarWearFlycloakRsp)
+	avatarWearFlycloakRsp.AvatarGuid = req.AvatarGuid
+	avatarWearFlycloakRsp.FlycloakId = req.FlycloakId
+	g.SendMsg(proto.ApiAvatarWearFlycloakRsp, userId, player.ClientSeq, avatarWearFlycloakRsp)
 }
 
 func (g *GameManager) PacketAvatarEquipChangeNotify(avatar *model.Avatar, weapon *model.Weapon, entityId uint32) *proto.AvatarEquipChangeNotify {
@@ -173,13 +262,18 @@ func (g *GameManager) UpdateUserAvatarFightProp(userId uint32, avatarId uint32) 
 	avatar := player.AvatarMap[avatarId]
 	avatarFightPropNotify.AvatarGuid = avatar.Guid
 	avatarFightPropNotify.FightPropMap = avatar.FightPropMap
-	g.SendMsg(proto.ApiAvatarFightPropNotify, userId, nil, avatarFightPropNotify)
+	g.SendMsg(proto.ApiAvatarFightPropNotify, userId, player.ClientSeq, avatarFightPropNotify)
 }
 
 func (g *GameManager) PacketAvatarInfo(avatar *model.Avatar) *proto.AvatarInfo {
 	playerPropertyConst := constant.GetPlayerPropertyConst()
 	fetterStateConst := constant.GetFetterStateConst()
+	isFocus := false
+	//if avatar.AvatarId == 10000005 || avatar.AvatarId == 10000007 {
+	//	isFocus = true
+	//}
 	pbAvatar := &proto.AvatarInfo{
+		IsFocus:  isFocus,
 		AvatarId: avatar.AvatarId,
 		Guid:     avatar.Guid,
 		PropMap: map[uint32]*proto.PropValue{
@@ -224,6 +318,7 @@ func (g *GameManager) PacketAvatarInfo(avatar *model.Avatar) *proto.AvatarInfo {
 		SkillLevelMap:     nil,
 		AvatarType:        1,
 		WearingFlycloakId: avatar.FlyCloak,
+		CostumeId:         avatar.Costume,
 		BornTime:          uint32(avatar.BornTime),
 	}
 	pbAvatar.FightPropMap = avatar.FightPropMap

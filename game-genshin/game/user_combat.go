@@ -7,14 +7,15 @@ import (
 	pb "google.golang.org/protobuf/proto"
 )
 
-func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+func (g *GameManager) CombatInvocationsNotify(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
 	//logger.LOG.Debug("user combat invocations, user id: %v", userId)
-	req := payloadMsg.(*proto.CombatInvocationsNotify)
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, user id: %v", userId)
 		return
 	}
+	player.ClientSeq = clientSeq
+	req := payloadMsg.(*proto.CombatInvocationsNotify)
 	world := g.worldManager.GetWorldByID(player.WorldId)
 	if world == nil {
 		return
@@ -97,7 +98,7 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *proto.Pack
 		combatInvocationsNotify := new(proto.CombatInvocationsNotify)
 		combatInvocationsNotify.InvokeList = invokeHandler.entryListForwardAll
 		for _, v := range scene.playerMap {
-			g.SendMsg(proto.ApiCombatInvocationsNotify, v.PlayerID, nil, combatInvocationsNotify)
+			g.SendMsg(proto.ApiCombatInvocationsNotify, v.PlayerID, world.owner.ClientSeq, combatInvocationsNotify)
 		}
 	}
 	if invokeHandler.AllExceptCurLen() > 0 {
@@ -107,24 +108,25 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, headMsg *proto.Pack
 			if player.PlayerID == v.PlayerID {
 				continue
 			}
-			g.SendMsg(proto.ApiCombatInvocationsNotify, v.PlayerID, nil, combatInvocationsNotify)
+			g.SendMsg(proto.ApiCombatInvocationsNotify, v.PlayerID, world.owner.ClientSeq, combatInvocationsNotify)
 		}
 	}
 	if invokeHandler.HostLen() > 0 {
 		combatInvocationsNotify := new(proto.CombatInvocationsNotify)
 		combatInvocationsNotify.InvokeList = invokeHandler.entryListForwardHost
-		g.SendMsg(proto.ApiCombatInvocationsNotify, world.owner.PlayerID, nil, combatInvocationsNotify)
+		g.SendMsg(proto.ApiCombatInvocationsNotify, world.owner.PlayerID, world.owner.ClientSeq, combatInvocationsNotify)
 	}
 }
 
-func (g *GameManager) AbilityInvocationsNotify(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+func (g *GameManager) AbilityInvocationsNotify(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
 	//logger.LOG.Debug("user ability invocations, user id: %v", userId)
-	req := payloadMsg.(*proto.AbilityInvocationsNotify)
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, user id: %v", userId)
 		return
 	}
+	player.ClientSeq = clientSeq
+	req := payloadMsg.(*proto.AbilityInvocationsNotify)
 	world := g.worldManager.GetWorldByID(player.WorldId)
 	if world == nil {
 		return
@@ -140,7 +142,7 @@ func (g *GameManager) AbilityInvocationsNotify(userId uint32, headMsg *proto.Pac
 		abilityInvocationsNotify := new(proto.AbilityInvocationsNotify)
 		abilityInvocationsNotify.Invokes = invokeHandler.entryListForwardAll
 		for _, v := range scene.playerMap {
-			g.SendMsg(proto.ApiAbilityInvocationsNotify, v.PlayerID, nil, abilityInvocationsNotify)
+			g.SendMsg(proto.ApiAbilityInvocationsNotify, v.PlayerID, world.owner.ClientSeq, abilityInvocationsNotify)
 		}
 	}
 	if invokeHandler.AllExceptCurLen() > 0 {
@@ -150,24 +152,25 @@ func (g *GameManager) AbilityInvocationsNotify(userId uint32, headMsg *proto.Pac
 			if player.PlayerID == v.PlayerID {
 				continue
 			}
-			g.SendMsg(proto.ApiAbilityInvocationsNotify, v.PlayerID, nil, abilityInvocationsNotify)
+			g.SendMsg(proto.ApiAbilityInvocationsNotify, v.PlayerID, world.owner.ClientSeq, abilityInvocationsNotify)
 		}
 	}
 	if invokeHandler.HostLen() > 0 {
 		abilityInvocationsNotify := new(proto.AbilityInvocationsNotify)
 		abilityInvocationsNotify.Invokes = invokeHandler.entryListForwardHost
-		g.SendMsg(proto.ApiAbilityInvocationsNotify, world.owner.PlayerID, nil, abilityInvocationsNotify)
+		g.SendMsg(proto.ApiAbilityInvocationsNotify, world.owner.PlayerID, world.owner.ClientSeq, abilityInvocationsNotify)
 	}
 }
 
-func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
 	//logger.LOG.Debug("user client ability ok, user id: %v", userId)
-	req := payloadMsg.(*proto.ClientAbilityInitFinishNotify)
 	player := g.userManager.GetOnlineUser(userId)
 	if player == nil {
 		logger.LOG.Error("player is nil, user id: %v", userId)
 		return
 	}
+	player.ClientSeq = clientSeq
+	req := payloadMsg.(*proto.ClientAbilityInitFinishNotify)
 	world := g.worldManager.GetWorldByID(player.WorldId)
 	if world == nil {
 		return
@@ -183,7 +186,7 @@ func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, headMsg *prot
 		clientAbilityInitFinishNotify := new(proto.ClientAbilityInitFinishNotify)
 		clientAbilityInitFinishNotify.Invokes = invokeHandler.entryListForwardAll
 		for _, v := range scene.playerMap {
-			g.SendMsg(proto.ApiClientAbilityInitFinishNotify, v.PlayerID, nil, clientAbilityInitFinishNotify)
+			g.SendMsg(proto.ApiClientAbilityInitFinishNotify, v.PlayerID, world.owner.ClientSeq, clientAbilityInitFinishNotify)
 		}
 	}
 	if invokeHandler.AllExceptCurLen() > 0 {
@@ -193,13 +196,13 @@ func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, headMsg *prot
 			if player.PlayerID == v.PlayerID {
 				continue
 			}
-			g.SendMsg(proto.ApiClientAbilityInitFinishNotify, v.PlayerID, nil, clientAbilityInitFinishNotify)
+			g.SendMsg(proto.ApiClientAbilityInitFinishNotify, v.PlayerID, world.owner.ClientSeq, clientAbilityInitFinishNotify)
 		}
 	}
 	if invokeHandler.HostLen() > 0 {
 		clientAbilityInitFinishNotify := new(proto.ClientAbilityInitFinishNotify)
 		clientAbilityInitFinishNotify.Invokes = invokeHandler.entryListForwardHost
-		g.SendMsg(proto.ApiClientAbilityInitFinishNotify, world.owner.PlayerID, nil, clientAbilityInitFinishNotify)
+		g.SendMsg(proto.ApiClientAbilityInitFinishNotify, world.owner.PlayerID, world.owner.ClientSeq, clientAbilityInitFinishNotify)
 	}
 }
 

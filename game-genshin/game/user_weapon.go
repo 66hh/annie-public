@@ -73,6 +73,6 @@ func (g *GameManager) AddUserWeapon(userId uint32, itemId uint32) uint64 {
 		},
 	}
 	storeItemChangeNotify.ItemList = append(storeItemChangeNotify.ItemList, pbItem)
-	g.SendMsg(proto.ApiStoreItemChangeNotify, userId, nil, storeItemChangeNotify)
+	g.SendMsg(proto.ApiStoreItemChangeNotify, userId, player.ClientSeq, storeItemChangeNotify)
 	return weaponId
 }

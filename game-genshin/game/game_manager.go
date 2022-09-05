@@ -7,7 +7,6 @@ import (
 	"game-genshin/dao"
 	"game-genshin/rpc"
 	pb "google.golang.org/protobuf/proto"
-	"time"
 )
 
 type GameManager struct {
@@ -64,12 +63,12 @@ func (g *GameManager) Start() {
 }
 
 // 发送消息给客户端
-func (g *GameManager) SendMsg(apiId uint16, userId uint32, headMsg *proto.PacketHead, payloadMsg pb.Message) {
+func (g *GameManager) SendMsg(apiId uint16, userId uint32, clientSeq uint32, payloadMsg pb.Message) {
 	netMsg := new(proto.NetMsg)
 	netMsg.UserId = userId
 	netMsg.EventId = proto.NormalMsg
 	netMsg.ApiId = apiId
-	netMsg.HeadMessage = headMsg
+	netMsg.ClientSeq = clientSeq
 	// 在这里直接序列化成二进制数据 防止发送的消息内包含各种游戏数据指针 而造成并发读写的问题
 	payloadMessageData, err := pb.Marshal(payloadMsg)
 	if err != nil {
@@ -78,13 +77,6 @@ func (g *GameManager) SendMsg(apiId uint16, userId uint32, headMsg *proto.Packet
 	}
 	netMsg.PayloadMessageData = payloadMessageData
 	g.netMsgInput <- netMsg
-}
-
-func (g *GameManager) getHeadMsg(seq uint32) (headMsg *proto.PacketHead) {
-	headMsg = new(proto.PacketHead)
-	headMsg.ClientSequenceId = seq
-	headMsg.SentMs = uint64(time.Now().UnixMilli())
-	return headMsg
 }
 
 func (g *GameManager) KickPlayer(userId uint32) {
