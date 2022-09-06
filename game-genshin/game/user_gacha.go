@@ -6,7 +6,7 @@ import (
 	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	gdc "game-genshin/config"
-	"game-genshin/constant"
+	"game-genshin/model"
 	"github.com/golang-jwt/jwt/v4"
 	pb "google.golang.org/protobuf/proto"
 	"time"
@@ -18,14 +18,8 @@ type UserInfo struct {
 }
 
 // 获取卡池信息
-func (g *GameManager) GetGachaInfoReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) GetGachaInfoReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get gacha info, userId: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, user id: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	serverAddr := config.CONF.Genshin.GachaHistoryServer
 	getGachaInfoRsp := new(proto.GetGachaInfoRsp)
 	getGachaInfoRsp.GachaRandom = 12345
@@ -197,14 +191,8 @@ func (g *GameManager) GetGachaInfoReq(userId uint32, clientSeq uint32, payloadMs
 	g.SendMsg(proto.ApiGetGachaInfoRsp, userId, player.ClientSeq, getGachaInfoRsp)
 }
 
-func (g *GameManager) DoGachaReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) DoGachaReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user do gacha, userId: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.DoGachaReq)
 	gachaScheduleId := req.GachaScheduleId
 	gachaTimes := req.GachaTimes
@@ -619,147 +607,4 @@ func (g *GameManager) doRandDropOnce(dropGroupDataConfig *gdc.DropGroupData) *gd
 		}
 	}
 	return nil
-}
-
-func (g *GameManager) GetShopmallDataReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
-	logger.LOG.Debug("user get shop mall, userId: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, user id: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
-
-	// PacketGetShopmallDataRsp
-	getShopmallDataRsp := new(proto.GetShopmallDataRsp)
-	getShopmallDataRsp.ShopTypeList = []uint32{900, 1052, 902, 1001, 903}
-	g.SendMsg(proto.ApiGetShopmallDataRsp, userId, player.ClientSeq, getShopmallDataRsp)
-}
-
-func (g *GameManager) GetShopReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
-	logger.LOG.Debug("user get shop, userId: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, user id: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
-	req := payloadMsg.(*proto.GetShopReq)
-	shopType := req.ShopType
-
-	if shopType != 1001 {
-		return
-	}
-
-	nextRefreshTime := uint32(time.Now().Add(time.Hour * 24 * 30).Unix())
-
-	// PacketGetShopRsp
-	getShopRsp := new(proto.GetShopRsp)
-	getShopRsp.Shop = &proto.Shop{
-		GoodsList: []*proto.ShopGoods{
-			{
-				MinLevel:        1,
-				EndTime:         2051193600,
-				Hcoin:           160,
-				GoodsId:         102001,
-				NextRefreshTime: nextRefreshTime,
-				MaxLevel:        99,
-				BeginTime:       1575129600,
-				GoodsItem: &proto.ItemParam{
-					ItemId: 223,
-					Count:  1,
-				},
-			},
-			{
-				MinLevel:        1,
-				EndTime:         2051193600,
-				Hcoin:           160,
-				GoodsId:         102002,
-				NextRefreshTime: nextRefreshTime,
-				MaxLevel:        99,
-				BeginTime:       1575129600,
-				GoodsItem: &proto.ItemParam{
-					ItemId: 224,
-					Count:  1,
-				},
-			},
-		},
-		NextRefreshTime: nextRefreshTime,
-		ShopType:        1001,
-	}
-	g.SendMsg(proto.ApiGetShopRsp, userId, player.ClientSeq, getShopRsp)
-}
-
-func (g *GameManager) BuyGoodsReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
-	logger.LOG.Debug("user buy goods, userId: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, user id: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
-	req := payloadMsg.(*proto.BuyGoodsReq)
-	buyItemId := req.Goods.GoodsItem.ItemId
-	buyItemCount := req.BuyCount
-	costHcoinCount := req.Goods.Hcoin * buyItemCount
-
-	if buyItemId != 223 && buyItemId != 224 {
-		return
-	}
-
-	if player.GetItemCount(201) < costHcoinCount {
-		return
-	}
-	g.CostUserItem(userId, []*UserItem{{
-		ItemId:      201,
-		ChangeCount: costHcoinCount,
-	}})
-
-	actionReasonConst := constant.GetActionReasonConst()
-	g.AddUserItem(userId, []*UserItem{{
-		ItemId:      buyItemId,
-		ChangeCount: buyItemCount,
-	}}, true, actionReasonConst.Shop)
-	req.Goods.BoughtNum = player.GetItemCount(buyItemId)
-
-	// PacketBuyGoodsRsp
-	buyGoodsRsp := new(proto.BuyGoodsRsp)
-	buyGoodsRsp.ShopType = req.ShopType
-	buyGoodsRsp.BuyCount = req.BuyCount
-	buyGoodsRsp.GoodsList = []*proto.ShopGoods{req.Goods}
-	g.SendMsg(proto.ApiBuyGoodsRsp, userId, player.ClientSeq, buyGoodsRsp)
-}
-
-func (g *GameManager) McoinExchangeHcoinReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
-	logger.LOG.Debug("user mcoin exchange hcoin, userId: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, user id: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
-	req := payloadMsg.(*proto.McoinExchangeHcoinReq)
-	if req.Hcoin != req.McoinCost {
-		return
-	}
-	count := req.Hcoin
-
-	if player.GetItemCount(203) < count {
-		return
-	}
-	g.CostUserItem(userId, []*UserItem{{
-		ItemId:      203,
-		ChangeCount: count,
-	}})
-
-	g.AddUserItem(userId, []*UserItem{{
-		ItemId:      201,
-		ChangeCount: count,
-	}}, false, 0)
-
-	// PacketMcoinExchangeHcoinRsp
-	mcoinExchangeHcoinRsp := new(proto.McoinExchangeHcoinRsp)
-	mcoinExchangeHcoinRsp.Hcoin = req.Hcoin
-	mcoinExchangeHcoinRsp.McoinCost = req.McoinCost
-	g.SendMsg(proto.ApiMcoinExchangeHcoinRsp, userId, player.ClientSeq, mcoinExchangeHcoinRsp)
 }

@@ -4,6 +4,7 @@ import pb "google.golang.org/protobuf/proto"
 
 const (
 	NormalMsg = iota
+	UserRegNotify
 	UserLoginNotify
 	UserOfflineNotify
 	ClientRttNotify

@@ -12,14 +12,8 @@ import (
 	"unicode/utf8"
 )
 
-func (g *GameManager) GetPlayerSocialDetailReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) GetPlayerSocialDetailReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get player social detail, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.GetPlayerSocialDetailReq)
 	targetUid := req.Uid
 
@@ -48,26 +42,14 @@ func (g *GameManager) GetPlayerSocialDetailReq(userId uint32, clientSeq uint32, 
 	g.SendMsg(proto.ApiGetPlayerSocialDetailRsp, userId, player.ClientSeq, getPlayerSocialDetailRsp)
 }
 
-func (g *GameManager) SetPlayerBirthdayReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) SetPlayerBirthdayReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user set birthday, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.SetPlayerBirthdayReq)
 	_ = req
 }
 
-func (g *GameManager) SetNameCardReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) SetNameCardReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change name card, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.SetNameCardReq)
 	nameCardId := req.NameCardId
 	exist := false
@@ -88,14 +70,8 @@ func (g *GameManager) SetNameCardReq(userId uint32, clientSeq uint32, payloadMsg
 	g.SendMsg(proto.ApiSetNameCardRsp, userId, player.ClientSeq, setNameCardRsp)
 }
 
-func (g *GameManager) SetPlayerSignatureReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) SetPlayerSignatureReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change signature, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.SetPlayerSignatureReq)
 	signature := req.Signature
 
@@ -112,14 +88,8 @@ func (g *GameManager) SetPlayerSignatureReq(userId uint32, clientSeq uint32, pay
 	g.SendMsg(proto.ApiSetPlayerSignatureRsp, userId, player.ClientSeq, setPlayerSignatureRsp)
 }
 
-func (g *GameManager) SetPlayerNameReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) SetPlayerNameReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change nickname, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.SetPlayerNameReq)
 	nickName := req.NickName
 
@@ -140,14 +110,8 @@ func (g *GameManager) SetPlayerNameReq(userId uint32, clientSeq uint32, payloadM
 	g.SendMsg(proto.ApiSetPlayerNameRsp, userId, player.ClientSeq, setPlayerNameRsp)
 }
 
-func (g *GameManager) SetPlayerHeadImageReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) SetPlayerHeadImageReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change head image, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.SetPlayerHeadImageReq)
 	avatarId := req.AvatarId
 	_, exist := player.AvatarMap[avatarId]
@@ -163,14 +127,8 @@ func (g *GameManager) SetPlayerHeadImageReq(userId uint32, clientSeq uint32, pay
 	g.SendMsg(proto.ApiSetPlayerHeadImageRsp, userId, player.ClientSeq, setPlayerHeadImageRsp)
 }
 
-func (g *GameManager) GetAllUnlockNameCardReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) GetAllUnlockNameCardReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get all unlock name card, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 
 	// PacketGetAllUnlockNameCardRsp
 	getAllUnlockNameCardRsp := new(proto.GetAllUnlockNameCardRsp)
@@ -178,14 +136,8 @@ func (g *GameManager) GetAllUnlockNameCardReq(userId uint32, clientSeq uint32, p
 	g.SendMsg(proto.ApiGetAllUnlockNameCardRsp, userId, player.ClientSeq, getAllUnlockNameCardRsp)
 }
 
-func (g *GameManager) GetPlayerFriendListReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) GetPlayerFriendListReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get friend list, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 
 	// PacketGetPlayerFriendListRsp
 	getPlayerFriendListRsp := new(proto.GetPlayerFriendListRsp)
@@ -225,14 +177,8 @@ func (g *GameManager) GetPlayerFriendListReq(userId uint32, clientSeq uint32, pa
 	g.SendMsg(proto.ApiGetPlayerFriendListRsp, userId, player.ClientSeq, getPlayerFriendListRsp)
 }
 
-func (g *GameManager) GetPlayerAskFriendListReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) GetPlayerAskFriendListReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get friend apply list, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 
 	// PacketGetPlayerAskFriendListRsp
 	getPlayerAskFriendListRsp := new(proto.GetPlayerAskFriendListRsp)
@@ -272,14 +218,8 @@ func (g *GameManager) GetPlayerAskFriendListReq(userId uint32, clientSeq uint32,
 	g.SendMsg(proto.ApiGetPlayerAskFriendListRsp, userId, player.ClientSeq, getPlayerAskFriendListRsp)
 }
 
-func (g *GameManager) AskAddFriendReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) AskAddFriendReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user apply add friend, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.AskAddFriendReq)
 	targetUid := req.TargetUid
 
@@ -336,14 +276,8 @@ func (g *GameManager) AskAddFriendReq(userId uint32, clientSeq uint32, payloadMs
 	g.SendMsg(proto.ApiAskAddFriendRsp, userId, player.ClientSeq, askAddFriendRsp)
 }
 
-func (g *GameManager) DealAddFriendReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) DealAddFriendReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user deal friend apply, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.DealAddFriendReq)
 	targetUid := req.TargetUid
 	result := req.DealAddFriendResult
@@ -375,14 +309,8 @@ func (g *GameManager) DealAddFriendReq(userId uint32, clientSeq uint32, payloadM
 	g.SendMsg(proto.ApiDealAddFriendRsp, userId, player.ClientSeq, dealAddFriendRsp)
 }
 
-func (g *GameManager) GetOnlinePlayerListReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) GetOnlinePlayerListReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get online player list, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 
 	count := 0
 	onlinePlayerList := make([]*model.Player, 0)
@@ -418,7 +346,7 @@ func (g *GameManager) PacketOnlinePlayerInfo(player *model.Player) *proto.Online
 		Uid:                 player.PlayerID,
 		Nickname:            player.NickName,
 		PlayerLevel:         player.Properties[playerPropertyConst.PROP_PLAYER_LEVEL],
-		MpSettingType:       player.MpSetting,
+		MpSettingType:       proto.MpSettingType(player.MpSetting),
 		NameCardId:          player.NameCard,
 		Signature:           player.Signature,
 		ProfilePicture:      &proto.ProfilePicture{AvatarId: player.HeadImage},

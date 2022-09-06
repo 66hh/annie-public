@@ -56,7 +56,7 @@ func (m *MessageQueue) startRecvHandler() {
 			logger.LOG.Error("parse bin to net msg error: %v", err)
 			continue
 		}
-		if netMsg.EventId == proto.NormalMsg {
+		if netMsg.EventId == proto.NormalMsg || netMsg.EventId == proto.UserRegNotify {
 			// protobuf PayloadMessage
 			payloadMessage := m.apiProtoMap.GetProtoObjByApiId(netMsg.ApiId)
 			err = pb.Unmarshal(netMsg.PayloadMessageData, payloadMessage)

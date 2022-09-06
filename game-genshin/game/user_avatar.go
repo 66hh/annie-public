@@ -52,14 +52,8 @@ func (g *GameManager) AddUserAvatar(userId uint32, avatarId uint32) {
 	g.SendMsg(proto.ApiAvatarAddNotify, userId, player.ClientSeq, avatarAddNotify)
 }
 
-func (g *GameManager) WearEquipReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) WearEquipReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user wear equip, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.WearEquipReq)
 	avatarGuid := req.AvatarGuid
 	equipGuid := req.EquipGuid
@@ -138,14 +132,8 @@ func (g *GameManager) WearUserAvatarEquip(userId uint32, avatarId uint32, weapon
 	g.SendMsg(proto.ApiAvatarEquipChangeNotify, userId, player.ClientSeq, avatarEquipChangeNotify)
 }
 
-func (g *GameManager) AvatarChangeCostumeReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) AvatarChangeCostumeReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change avatar costume, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.AvatarChangeCostumeReq)
 	avatarGuid := req.AvatarGuid
 	costumeId := req.CostumeId
@@ -183,14 +171,8 @@ func (g *GameManager) AvatarChangeCostumeReq(userId uint32, clientSeq uint32, pa
 	g.SendMsg(proto.ApiAvatarChangeCostumeRsp, userId, player.ClientSeq, avatarChangeCostumeRsp)
 }
 
-func (g *GameManager) AvatarWearFlycloakReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) AvatarWearFlycloakReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change avatar fly cloak, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.AvatarWearFlycloakReq)
 	avatarGuid := req.AvatarGuid
 	flycloakId := req.FlycloakId

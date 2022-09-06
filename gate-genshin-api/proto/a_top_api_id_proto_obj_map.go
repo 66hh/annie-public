@@ -110,6 +110,7 @@ func (a *ApiProtoMap) registerAllMessage() {
 	a.registerMessage(ApiSceneEntityDisappearNotify, &SceneEntityDisappearNotify{})         // 场景实体消失通知
 	a.registerMessage(ApiChangeAvatarRsp, &ChangeAvatarRsp{})                               // 更换角色响应
 	a.registerMessage(ApiSetUpAvatarTeamRsp, &SetUpAvatarTeamRsp{})                         // 配置队伍响应
+	a.registerMessage(ApiChangeMpTeamAvatarRsp, &ChangeMpTeamAvatarRsp{})                   // 配置多人游戏队伍响应
 	a.registerMessage(ApiAvatarTeamUpdateNotify, &AvatarTeamUpdateNotify{})                 // 角色队伍更新通知
 	a.registerMessage(ApiChooseCurAvatarTeamRsp, &ChooseCurAvatarTeamRsp{})                 // 切换队伍响应
 	a.registerMessage(ApiStoreItemChangeNotify, &StoreItemChangeNotify{})                   // 背包道具变动通知
@@ -163,6 +164,18 @@ func (a *ApiProtoMap) registerAllMessage() {
 	a.registerMessage(ApiAvatarWearFlycloakReq, &AvatarWearFlycloakReq{})                   // 角色换风之翼请求
 	a.registerMessage(ApiAvatarWearFlycloakRsp, &AvatarWearFlycloakRsp{})                   // 角色换风之翼响应
 	a.registerMessage(ApiAvatarFlycloakChangeNotify, &AvatarFlycloakChangeNotify{})         // 角色换风之翼通知
+	a.registerMessage(ApiPullRecentChatReq, &PullRecentChatReq{})                           // 最近聊天拉取请求
+	a.registerMessage(ApiPullRecentChatRsp, &PullRecentChatRsp{})                           // 最近聊天拉取响应
+	a.registerMessage(ApiPullPrivateChatReq, &PullPrivateChatReq{})                         // 私聊历史记录请求
+	a.registerMessage(ApiPullPrivateChatRsp, &PullPrivateChatRsp{})                         // 私聊历史记录响应
+	a.registerMessage(ApiPrivateChatReq, &PrivateChatReq{})                                 // 私聊消息发送请求
+	a.registerMessage(ApiPrivateChatRsp, &PrivateChatRsp{})                                 // 私聊消息发送响应
+	a.registerMessage(ApiPrivateChatNotify, &PrivateChatNotify{})                           // 私聊消息通知
+	a.registerMessage(ApiReadPrivateChatReq, &ReadPrivateChatReq{})                         // 私聊消息已读请求
+	a.registerMessage(ApiReadPrivateChatRsp, &ReadPrivateChatRsp{})                         // 私聊消息已读响应
+	a.registerMessage(ApiPlayerChatReq, &PlayerChatReq{})                                   // 多人聊天消息发送请求
+	a.registerMessage(ApiPlayerChatRsp, &PlayerChatRsp{})                                   // 多人聊天消息发送响应
+	a.registerMessage(ApiPlayerChatNotify, &PlayerChatNotify{})                             // 多人聊天消息通知
 	// 尚未得知的客户端上行消息
 	a.registerMessage(ApiClientAbilityChangeNotify, &ClientAbilityChangeNotify{})             // 未知
 	a.registerMessage(ApiEvtAiSyncSkillCdNotify, &EvtAiSyncSkillCdNotify{})                   // 未知

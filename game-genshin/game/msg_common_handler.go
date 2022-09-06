@@ -3,17 +3,12 @@ package game
 import (
 	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
+	"game-genshin/model"
 	pb "google.golang.org/protobuf/proto"
 )
 
-func (g *GameManager) PlayerSetPauseReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) PlayerSetPauseReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user pause, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.PlayerSetPauseReq)
 	isPaused := req.IsPaused
 
@@ -24,26 +19,13 @@ func (g *GameManager) PlayerSetPauseReq(userId uint32, clientSeq uint32, payload
 	g.SendMsg(proto.ApiPlayerSetPauseRsp, userId, player.ClientSeq, playerSetPauseRsp)
 }
 
-func (g *GameManager) PathfindingEnterSceneReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) PathfindingEnterSceneReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user pathfinding enter scene, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
-
 	g.SendMsg(proto.ApiPathfindingEnterSceneRsp, userId, player.ClientSeq, new(proto.NullMsg))
 }
 
-func (g *GameManager) QueryPathReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) QueryPathReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	//logger.LOG.Debug("user query path, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.QueryPathReq)
 
 	// PacketQueryPathRsp
@@ -54,14 +36,8 @@ func (g *GameManager) QueryPathReq(userId uint32, clientSeq uint32, payloadMsg p
 	g.SendMsg(proto.ApiQueryPathRsp, userId, player.ClientSeq, queryPathRsp)
 }
 
-func (g *GameManager) GetScenePointReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) GetScenePointReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get scene point, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.GetScenePointReq)
 
 	// PacketGetScenePointRsp
@@ -78,14 +54,8 @@ func (g *GameManager) GetScenePointReq(userId uint32, clientSeq uint32, payloadM
 	g.SendMsg(proto.ApiGetScenePointRsp, userId, player.ClientSeq, getScenePointRsp)
 }
 
-func (g *GameManager) GetSceneAreaReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) GetSceneAreaReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get scene area, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.GetSceneAreaReq)
 
 	// PacketGetSceneAreaRsp
@@ -99,14 +69,8 @@ func (g *GameManager) GetSceneAreaReq(userId uint32, clientSeq uint32, payloadMs
 	g.SendMsg(proto.ApiGetSceneAreaRsp, userId, player.ClientSeq, getSceneAreaRsp)
 }
 
-func (g *GameManager) EnterWorldAreaReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) EnterWorldAreaReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user enter world area, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.EnterWorldAreaReq)
 
 	// PacketEnterWorldAreaRsp
@@ -116,14 +80,8 @@ func (g *GameManager) EnterWorldAreaReq(userId uint32, clientSeq uint32, payload
 	g.SendMsg(proto.ApiEnterWorldAreaRsp, userId, player.ClientSeq, enterWorldAreaRsp)
 }
 
-func (g *GameManager) TowerAllDataReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) TowerAllDataReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get tower all data, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 
 	// PacketTowerAllDataRsp
 	towerAllDataRsp := new(proto.TowerAllDataRsp)
@@ -140,18 +98,10 @@ func (g *GameManager) TowerAllDataReq(userId uint32, clientSeq uint32, payloadMs
 	g.SendMsg(proto.ApiTowerAllDataRsp, userId, player.ClientSeq, towerAllDataRsp)
 }
 
-func (g *GameManager) EntityAiSyncNotify(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) EntityAiSyncNotify(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user entity ai sync, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
-	if payloadMsg == nil {
-		return
-	}
 	req := payloadMsg.(*proto.EntityAiSyncNotify)
+
 	if len(req.LocalAvatarAlertedMonsterList) == 0 {
 		return
 	}

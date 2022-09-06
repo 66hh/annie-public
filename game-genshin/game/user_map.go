@@ -5,18 +5,13 @@ import (
 	"flswld.com/logger"
 	gdc "game-genshin/config"
 	"game-genshin/constant"
+	"game-genshin/model"
 	pb "google.golang.org/protobuf/proto"
 	"strconv"
 )
 
-func (g *GameManager) SceneTransToPointReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) SceneTransToPointReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user get scene trans to point, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.SceneTransToPointReq)
 
 	transPointId := strconv.Itoa(int(req.SceneId)) + "_" + strconv.Itoa(int(req.PointId))
@@ -81,14 +76,8 @@ func (g *GameManager) SceneTransToPointReq(userId uint32, clientSeq uint32, payl
 	g.SendMsg(proto.ApiSceneTransToPointRsp, userId, player.ClientSeq, sceneTransToPointRsp)
 }
 
-func (g *GameManager) MarkMapReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) MarkMapReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user mark map, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.MarkMapReq)
 	operation := req.Op
 	if operation == proto.MarkMapReq_OPERATION_ADD {

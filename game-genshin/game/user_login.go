@@ -24,18 +24,19 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player, clientSeq u
 		g.SendMsg(proto.ApiDoSetPlayerBornDataNotify, userId, clientSeq, new(proto.NullMsg))
 		return
 	}
+	player.OnlineTime = uint32(time.Now().UnixMilli())
+	player.Online = true
 	// TODO 3.0.0REL版本 目前存在当前队伍活跃角色非主角时 登录进不去场景的情况 所以暂时先把四号队伍作为仅存在主角的保留队伍
 	player.TeamConfig.CurrTeamIndex = 3
 	player.TeamConfig.CurrAvatarIndex = 0
 	// 创建世界
-	player.Online = true
 	world := g.worldManager.CreateWorld(player, false)
 	world.AddPlayer(player, player.SceneId)
 	player.WorldId = world.id
 	// 初始化
 	player.InitAll()
 	playerPropertyConst := constant.GetPlayerPropertyConst()
-	player.Properties[playerPropertyConst.PROP_PLAYER_MP_SETTING_TYPE] = uint32(player.MpSetting.Number())
+	player.Properties[playerPropertyConst.PROP_PLAYER_MP_SETTING_TYPE] = player.MpSetting
 	player.Properties[playerPropertyConst.PROP_IS_MP_MODE_AVAILABLE] = 1
 	//g.userManager.UpdateUser(player)
 	player.TeamConfig.UpdateTeam()
@@ -201,23 +202,20 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player, clientSeq u
 	g.SendMsg(proto.ApiOpenStateUpdateNotify, userId, clientSeq, openStateUpdateNotify)
 }
 
-func (g *GameManager) SetPlayerBornDataReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
-	logger.LOG.Debug("user set born data, user id: %v", userId)
-	if payloadMsg == nil {
-		return
-	}
+func (g *GameManager) OnReg(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+	logger.LOG.Debug("user reg, user id: %v", userId)
 	req := payloadMsg.(*proto.SetPlayerBornDataReq)
 	logger.LOG.Debug("avatar id: %v, nickname: %v", req.AvatarId, req.NickName)
 
 	exist, asyncWait := g.userManager.CheckUserExistOnReg(userId, req, clientSeq)
 	if !asyncWait {
-		g.PlayerReg(exist, req, userId, clientSeq)
+		g.OnRegOk(exist, req, userId, clientSeq)
 	}
 }
 
-func (g *GameManager) PlayerReg(exist bool, req *proto.SetPlayerBornDataReq, userId uint32, clientSeq uint32) {
+func (g *GameManager) OnRegOk(exist bool, req *proto.SetPlayerBornDataReq, userId uint32, clientSeq uint32) {
 	if exist {
-		logger.LOG.Error("recv set born data req, but user is already exist, userId: %v", userId)
+		logger.LOG.Error("recv reg req, but user is already exist, userId: %v", userId)
 		return
 	}
 
@@ -295,14 +293,15 @@ func (g *GameManager) PlayerReg(exist bool, req *proto.SetPlayerBornDataReq, use
 	player.Pos = &model.Vector{X: 2747, Y: 194, Z: -1719}
 	player.Rot = &model.Vector{X: 0, Y: 307, Z: 0}
 
-	player.MpSetting = proto.MpSettingType_MP_SETTING_TYPE_ENTER_AFTER_APPLY
+	player.MpSetting = uint32(proto.MpSettingType_MP_SETTING_TYPE_ENTER_AFTER_APPLY)
 
 	player.ItemMap = make(map[uint32]*model.Item)
 	player.WeaponMap = make(map[uint64]*model.Weapon)
 	player.ReliquaryMap = make(map[uint64]*model.Reliquary)
 	player.AvatarMap = make(map[uint32]*model.Avatar)
-
 	player.GameObjectGuidMap = make(map[uint64]model.GameObject)
+	player.DropInfo = model.NewDropInfo()
+	player.ChatMsgMap = make(map[uint32][]*model.ChatMsg)
 
 	// 选哥哥的福报
 	if mainCharAvatarId == 10000005 {
@@ -341,21 +340,10 @@ func (g *GameManager) PlayerReg(exist bool, req *proto.SetPlayerBornDataReq, use
 	player.TeamConfig = model.NewTeamInfo(mainCharAvatarId)
 	player.TeamConfig.AddAvatarToTeam(mainCharAvatarId, 0)
 
-	player.DropInfo = model.NewDropInfo()
-
 	g.userManager.AddUser(player)
 
 	g.SendMsg(proto.ApiSetPlayerBornDataRsp, userId, clientSeq, new(proto.NullMsg))
 	g.OnLogin(userId, clientSeq)
-}
-
-func (g *GameManager) PlayerForceExitReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
-	// 告诉网关断开玩家的连接
-	g.SendMsg(proto.ApiPlayerForceExitRsp, userId, clientSeq, new(proto.NullMsg))
-	go func() {
-		time.Sleep(time.Second)
-		g.KickPlayer(userId)
-	}()
 }
 
 func (g *GameManager) OnUserOffline(userId uint32) {
@@ -371,5 +359,6 @@ func (g *GameManager) OnUserOffline(userId uint32) {
 	}
 	player.OfflineTime = uint32(time.Now().Unix())
 	player.Online = false
+	player.TotalOnlineTime += uint32(time.Now().UnixMilli()) - player.OnlineTime
 	g.userManager.OfflineUser(player)
 }

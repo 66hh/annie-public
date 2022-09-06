@@ -41,6 +41,7 @@ func (w *WorldManager) CreateWorld(owner *model.Player, multiplayer bool) *World
 		worldLevel:      0,
 		multiplayer:     multiplayer,
 		mpLevelEntityId: 0,
+		chatMsgList:     make([]*proto.ChatInfo, 0),
 	}
 	entityIdTypeConst := constant.GetEntityIdTypeConst()
 	world.mpLevelEntityId = world.GetNextWorldEntityId(entityIdTypeConst.MPLEVEL)
@@ -66,6 +67,7 @@ type World struct {
 	worldLevel      uint8
 	multiplayer     bool
 	mpLevelEntityId uint32
+	chatMsgList     []*proto.ChatInfo
 }
 
 func (w *World) GetNextWorldEntityId(entityType uint16) uint32 {
@@ -116,14 +118,12 @@ func (w *World) GetSceneById(sceneId uint32) *Scene {
 	return scene
 }
 
-type Attack struct {
-	combatInvokeEntry *proto.CombatInvokeEntry
-	uid               uint32
+func (w *World) AddChat(chatInfo *proto.ChatInfo) {
+	w.chatMsgList = append(w.chatMsgList, chatInfo)
 }
 
-type PlayerTeamEntity struct {
-	avatarEntityMap map[uint32]uint32
-	weaponEntityMap map[uint64]uint32
+func (w *World) GetChatList() []*proto.ChatInfo {
+	return w.chatMsgList
 }
 
 type Scene struct {
@@ -134,6 +134,31 @@ type Scene struct {
 	playerTeamEntityMap map[uint32]*PlayerTeamEntity
 	time                uint32
 	attackQueue         *alg.Queue
+}
+
+type Entity struct {
+	id                  uint32
+	scene               *Scene
+	pos                 *model.Vector
+	rot                 *model.Vector
+	moveState           uint16
+	lastMoveSceneTimeMs uint32
+	lastMoveReliableSeq uint32
+	fightProp           map[uint32]float32
+	entityType          uint32
+	uid                 uint32
+	avatarId            uint32
+	level               uint8
+}
+
+type PlayerTeamEntity struct {
+	avatarEntityMap map[uint32]uint32
+	weaponEntityMap map[uint64]uint32
+}
+
+type Attack struct {
+	combatInvokeEntry *proto.CombatInvokeEntry
+	uid               uint32
 }
 
 func (s *Scene) ChangeTime(time uint32) {
@@ -166,27 +191,20 @@ func (s *Scene) UpdatePlayerTeamEntity(player *model.Player) {
 	}
 }
 
-type Entity struct {
-	id                  uint32
-	scene               *Scene
-	pos                 *model.Vector
-	rot                 *model.Vector
-	moveState           uint16
-	lastMoveSceneTimeMs uint32
-	lastMoveReliableSeq uint32
-	fightProp           map[uint32]float32
-	entityType          uint32
-	uid                 uint32
-	avatarId            uint32
-	level               uint8
-}
-
 func (s *Scene) AddPlayer(player *model.Player) {
 	s.playerMap[player.PlayerID] = player
 	s.CreatePlayerTeamEntity(player)
 }
 
 func (s *Scene) RemovePlayer(player *model.Player) {
+	playerTeamEntity := s.GetPlayerTeamEntity(player.PlayerID)
+	for _, avatarEntityId := range playerTeamEntity.avatarEntityMap {
+		delete(s.entityMap, avatarEntityId)
+	}
+	for _, weaponEntityId := range playerTeamEntity.weaponEntityMap {
+		delete(s.entityMap, weaponEntityId)
+	}
+	delete(s.playerTeamEntityMap, player.PlayerID)
 	delete(s.playerMap, player.PlayerID)
 }
 

@@ -10,14 +10,8 @@ import (
 	"time"
 )
 
-func (g *GameManager) PlayerApplyEnterMpReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) PlayerApplyEnterMpReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user apply enter world, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.PlayerApplyEnterMpReq)
 	targetUid := req.TargetUid
 
@@ -29,14 +23,8 @@ func (g *GameManager) PlayerApplyEnterMpReq(userId uint32, clientSeq uint32, pay
 	g.SendMsg(proto.ApiPlayerApplyEnterMpRsp, player.PlayerID, player.ClientSeq, playerApplyEnterMpRsp)
 }
 
-func (g *GameManager) PlayerApplyEnterMpResultReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) PlayerApplyEnterMpResultReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user deal world enter apply, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.PlayerApplyEnterMpResultReq)
 	applyUid := req.ApplyUid
 	isAgreed := req.IsAgreed
@@ -50,14 +38,8 @@ func (g *GameManager) PlayerApplyEnterMpResultReq(userId uint32, clientSeq uint3
 	g.SendMsg(proto.ApiPlayerApplyEnterMpResultRsp, player.PlayerID, player.ClientSeq, playerApplyEnterMpResultRsp)
 }
 
-func (g *GameManager) PlayerGetForceQuitBanInfoReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) PlayerGetForceQuitBanInfoReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user exit world, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 
 	ok := g.UserLeaveWorld(player)
 
@@ -255,7 +237,11 @@ func (g *GameManager) UpdateWorldPlayerInfo(hostWorld *World, excludePlayer *mod
 		if worldPlayer.PlayerID == excludePlayer.PlayerID {
 			continue
 		}
+
 		// TODO 更新队伍
+		// PacketSceneTeamUpdateNotify
+		sceneTeamUpdateNotify := g.PacketSceneTeamUpdateNotify(hostWorld)
+		g.SendMsg(proto.ApiSceneTeamUpdateNotify, worldPlayer.PlayerID, worldPlayer.ClientSeq, sceneTeamUpdateNotify)
 
 		// PacketWorldPlayerInfoNotify
 		worldPlayerInfoNotify := new(proto.WorldPlayerInfoNotify)
@@ -265,7 +251,7 @@ func (g *GameManager) UpdateWorldPlayerInfo(hostWorld *World, excludePlayer *mod
 			onlinePlayerInfo.Uid = subWorldPlayer.PlayerID
 			onlinePlayerInfo.Nickname = subWorldPlayer.NickName
 			onlinePlayerInfo.PlayerLevel = subWorldPlayer.Properties[playerPropertyConst.PROP_PLAYER_LEVEL]
-			onlinePlayerInfo.MpSettingType = subWorldPlayer.MpSetting
+			onlinePlayerInfo.MpSettingType = proto.MpSettingType(subWorldPlayer.MpSetting)
 			onlinePlayerInfo.NameCardId = subWorldPlayer.NameCard
 			onlinePlayerInfo.Signature = subWorldPlayer.Signature
 			// 头像
@@ -283,7 +269,7 @@ func (g *GameManager) UpdateWorldPlayerInfo(hostWorld *World, excludePlayer *mod
 			onlinePlayerInfo.Uid = subWorldPlayer.PlayerID
 			onlinePlayerInfo.Nickname = subWorldPlayer.NickName
 			onlinePlayerInfo.PlayerLevel = subWorldPlayer.Properties[playerPropertyConst.PROP_PLAYER_LEVEL]
-			onlinePlayerInfo.MpSettingType = subWorldPlayer.MpSetting
+			onlinePlayerInfo.MpSettingType = proto.MpSettingType(subWorldPlayer.MpSetting)
 			onlinePlayerInfo.NameCardId = subWorldPlayer.NameCard
 			onlinePlayerInfo.Signature = subWorldPlayer.Signature
 			// 头像

@@ -19,6 +19,7 @@ const (
 	ConnWaitToken = iota
 	ConnWaitLogin
 	ConnAlive
+	ConnClose
 )
 
 type ClientHeadMeta struct {
@@ -215,36 +216,8 @@ func (f *ForwardManager) sendNetMsgToGameServer() {
 		})
 		connState := f.getConnState(protoMsg.ConvId)
 		// gate本地处理的请求
-		if protoMsg.ApiId == proto.ApiPingReq {
-			// ping请求
-			// 未登录禁止ping
-			if connState != ConnAlive {
-				continue
-			}
-			pingReq := protoMsg.PayloadMessage.(*proto.PingReq)
-			logger.LOG.Debug("user ping req, data: %v", pingReq.String())
-			// 返回数据到客户端
-			// TODO 记录客户端最后一次ping时间做超时下线处理
-			pingRsp := new(proto.PingRsp)
-			pingRsp.ClientTime = pingReq.ClientTime
-			resp := new(net.ProtoMsg)
-			resp.ConvId = protoMsg.ConvId
-			resp.ApiId = proto.ApiPingRsp
-			resp.HeadMessage = f.getHeadMsg(protoMsg.HeadMessage.ClientSequenceId)
-			resp.PayloadMessage = pingRsp
-			f.protoMsgInput <- resp
-			// 通知GS玩家客户端的本地时钟
-			userId, exist := f.getUserIdByConvId(protoMsg.ConvId)
-			if !exist {
-				logger.LOG.Error("can not find userId by convId")
-				continue
-			}
-			netMsg := new(proto.NetMsg)
-			netMsg.UserId = userId
-			netMsg.EventId = proto.ClientTimeNotify
-			netMsg.ClientTime = pingReq.ClientTime
-			f.netMsgInput <- netMsg
-		} else if protoMsg.ApiId == proto.ApiGetPlayerTokenReq {
+		switch protoMsg.ApiId {
+		case proto.ApiGetPlayerTokenReq:
 			// 获取玩家token请求
 			if connState != ConnWaitToken {
 				continue
@@ -267,7 +240,7 @@ func (f *ForwardManager) sendNetMsgToGameServer() {
 			resp.HeadMessage = f.getHeadMsg(protoMsg.HeadMessage.ClientSequenceId)
 			resp.PayloadMessage = getPlayerTokenRsp
 			f.protoMsgInput <- resp
-		} else if protoMsg.ApiId == proto.ApiPlayerLoginReq {
+		case proto.ApiPlayerLoginReq:
 			// 玩家登录请求
 			if connState != ConnWaitLogin {
 				continue
@@ -300,7 +273,67 @@ func (f *ForwardManager) sendNetMsgToGameServer() {
 				resp.PayloadMessage = playerLoginRsp
 				f.protoMsgInput <- resp
 			}()
-		} else {
+		case proto.ApiSetPlayerBornDataReq:
+			// 玩家注册请求
+			if connState != ConnAlive {
+				continue
+			}
+			userId, exist := f.getUserIdByConvId(protoMsg.ConvId)
+			if !exist {
+				logger.LOG.Error("can not find userId by convId")
+				continue
+			}
+			netMsg := new(proto.NetMsg)
+			netMsg.UserId = userId
+			netMsg.EventId = proto.UserRegNotify
+			netMsg.ApiId = proto.ApiSetPlayerBornDataReq
+			netMsg.ClientSeq = protoMsg.HeadMessage.ClientSequenceId
+			netMsg.PayloadMessage = protoMsg.PayloadMessage
+			f.netMsgInput <- netMsg
+		case proto.ApiPlayerForceExitRsp:
+			// 玩家退出游戏请求
+			if connState != ConnAlive {
+				continue
+			}
+			userId, exist := f.getUserIdByConvId(protoMsg.ConvId)
+			if !exist {
+				logger.LOG.Error("can not find userId by convId")
+				continue
+			}
+			f.setConnState(protoMsg.ConvId, ConnClose)
+			info := new(gm.KickPlayerInfo)
+			info.UserId = userId
+			info.Reason = uint32(kcp.EnetServerKick)
+			f.KickPlayer(info)
+		case proto.ApiPingReq:
+			// ping请求
+			if connState != ConnAlive {
+				continue
+			}
+			pingReq := protoMsg.PayloadMessage.(*proto.PingReq)
+			logger.LOG.Debug("user ping req, data: %v", pingReq.String())
+			// 返回数据到客户端
+			// TODO 记录客户端最后一次ping时间做超时下线处理
+			pingRsp := new(proto.PingRsp)
+			pingRsp.ClientTime = pingReq.ClientTime
+			resp := new(net.ProtoMsg)
+			resp.ConvId = protoMsg.ConvId
+			resp.ApiId = proto.ApiPingRsp
+			resp.HeadMessage = f.getHeadMsg(protoMsg.HeadMessage.ClientSequenceId)
+			resp.PayloadMessage = pingRsp
+			f.protoMsgInput <- resp
+			// 通知GS玩家客户端的本地时钟
+			userId, exist := f.getUserIdByConvId(protoMsg.ConvId)
+			if !exist {
+				logger.LOG.Error("can not find userId by convId")
+				continue
+			}
+			netMsg := new(proto.NetMsg)
+			netMsg.UserId = userId
+			netMsg.EventId = proto.ClientTimeNotify
+			netMsg.ClientTime = pingReq.ClientTime
+			f.netMsgInput <- netMsg
+		default:
 			// 转发到GS
 			// 未登录禁止访问GS
 			if connState != ConnAlive {

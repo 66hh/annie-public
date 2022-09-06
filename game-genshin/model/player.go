@@ -1,7 +1,6 @@
 package model
 
 import (
-	"flswld.com/gate-genshin-api/proto"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -27,9 +26,11 @@ type Player struct {
 	NameCardList     []uint32              `bson:"nameCardList"`     // 已解锁名片列表
 	FriendList       []uint32              `bson:"friendList"`       // 好友uid列表
 	FriendApplyList  []uint32              `bson:"friendApplyList"`  // 好友申请uid列表
-	OfflineTime      uint32                `bson:"offlineTime"`      // 离线时间
+	OfflineTime      uint32                `bson:"offlineTime"`      // 离线时间点
+	OnlineTime       uint32                `bson:"onlineTime"`       // 上线时间点
+	TotalOnlineTime  uint32                `bson:"totalOnlineTime"`  // 玩家累计在线时长
 	Properties       map[uint16]uint32     `bson:"properties"`       // 玩家自身相关的一些属性
-	MpSetting        proto.MpSettingType   `bson:"mpSetting"`        // 世界权限
+	MpSetting        uint32                `bson:"mpSetting"`        // 世界权限
 	RegionId         uint32                `bson:"regionId"`         // regionId
 	FlyCloakList     []uint32              `bson:"flyCloakList"`     // 风之翼列表
 	CostumeList      []uint32              `bson:"costumeList"`      // 角色衣装列表
@@ -43,11 +44,12 @@ type Player struct {
 	AvatarMap        map[uint32]*Avatar    `bson:"avatarMap"`        // 角色信息
 	DropInfo         *DropInfo             `bson:"dropInfo"`         // 掉落信息
 	MainCharAvatarId uint32                `bson:"mainCharAvatarId"` // 主角id
+	ChatMsgMap       map[uint32][]*ChatMsg `bson:"chatMsgMap"`       // 聊天信息
 	// 在线数据
 	EnterSceneToken       uint32                `bson:"-"` // 玩家的世界进入令牌
 	DbState               int                   `bson:"-"` // 数据库存档状态
 	WorldId               uint32                `bson:"-"` // 所在的世界id
-	PeerId                uint32                `bson:"-"` // 多人世界的玩家编号 待确定
+	PeerId                uint32                `bson:"-"` // 多人世界的玩家编号
 	GameObjectGuidCounter uint64                `bson:"-"` // 游戏对象guid计数器
 	ClientTime            uint32                `bson:"-"` // 玩家客户端的本地时钟
 	ClientRTT             uint32                `bson:"-"` // 玩家客户端往返时延

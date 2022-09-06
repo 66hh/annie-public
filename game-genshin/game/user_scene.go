@@ -13,14 +13,8 @@ import (
 	"time"
 )
 
-func (g *GameManager) EnterSceneReadyReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) EnterSceneReadyReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user enter scene ready, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.EnterSceneReadyReq)
 	logger.LOG.Debug("EnterSceneReadyReq: %v", req)
 	logger.LOG.Debug("player.EnterSceneToken: %v", player.EnterSceneToken)
@@ -40,14 +34,8 @@ func (g *GameManager) EnterSceneReadyReq(userId uint32, clientSeq uint32, payloa
 	g.SendMsg(proto.ApiEnterSceneReadyRsp, userId, player.ClientSeq, enterSceneReadyRsp)
 }
 
-func (g *GameManager) SceneInitFinishReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) SceneInitFinishReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user scene init finish, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 
 	// PacketServerTimeNotify
 	serverTimeNotify := new(proto.ServerTimeNotify)
@@ -64,7 +52,7 @@ func (g *GameManager) SceneInitFinishReq(userId uint32, clientSeq uint32, payloa
 		onlinePlayerInfo.Uid = worldPlayer.PlayerID
 		onlinePlayerInfo.Nickname = worldPlayer.NickName
 		onlinePlayerInfo.PlayerLevel = worldPlayer.Properties[playerPropertyConst.PROP_PLAYER_LEVEL]
-		onlinePlayerInfo.MpSettingType = worldPlayer.MpSetting
+		onlinePlayerInfo.MpSettingType = proto.MpSettingType(worldPlayer.MpSetting)
 		onlinePlayerInfo.NameCardId = worldPlayer.NameCard
 		onlinePlayerInfo.Signature = worldPlayer.Signature
 		// 头像
@@ -183,7 +171,7 @@ func (g *GameManager) SceneInitFinishReq(userId uint32, clientSeq uint32, payloa
 		onlinePlayerInfo.Uid = worldPlayer.PlayerID
 		onlinePlayerInfo.Nickname = worldPlayer.NickName
 		onlinePlayerInfo.PlayerLevel = worldPlayer.Properties[playerPropertyConst.PROP_PLAYER_LEVEL]
-		onlinePlayerInfo.MpSettingType = worldPlayer.MpSetting
+		onlinePlayerInfo.MpSettingType = proto.MpSettingType(worldPlayer.MpSetting)
 		onlinePlayerInfo.NameCardId = worldPlayer.NameCard
 		onlinePlayerInfo.Signature = worldPlayer.Signature
 		// 头像
@@ -233,14 +221,8 @@ func (g *GameManager) SceneInitFinishReq(userId uint32, clientSeq uint32, payloa
 	g.SendMsg(proto.ApiSceneInitFinishRsp, userId, player.ClientSeq, SceneInitFinishRsp)
 }
 
-func (g *GameManager) EnterSceneDoneReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) EnterSceneDoneReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user enter scene done, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	world := g.worldManager.GetWorldByID(player.WorldId)
 	scene := world.GetSceneById(player.SceneId)
 
@@ -252,7 +234,7 @@ func (g *GameManager) EnterSceneDoneReq(userId uint32, clientSeq uint32, payload
 	// PacketPlayerTimeNotify
 	playerTimeNotify := new(proto.PlayerTimeNotify)
 	playerTimeNotify.IsPaused = player.Pause
-	playerTimeNotify.PlayerTime = uint64(player.ClientTime)
+	playerTimeNotify.PlayerTime = uint64(player.TotalOnlineTime)
 	playerTimeNotify.ServerTime = uint64(time.Now().UnixMilli())
 	g.SendMsg(proto.ApiPlayerTimeNotify, userId, player.ClientSeq, playerTimeNotify)
 
@@ -309,14 +291,8 @@ func (g *GameManager) EnterSceneDoneReq(userId uint32, clientSeq uint32, payload
 	g.SendMsg(proto.ApiWorldPlayerRTTNotify, userId, 0, worldPlayerRTTNotify)
 }
 
-func (g *GameManager) PostEnterSceneReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) PostEnterSceneReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user post enter scene, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 
 	// PacketPostEnterSceneRsp
 	postEnterSceneRsp := new(proto.PostEnterSceneRsp)
@@ -324,14 +300,8 @@ func (g *GameManager) PostEnterSceneReq(userId uint32, clientSeq uint32, payload
 	g.SendMsg(proto.ApiPostEnterSceneRsp, userId, player.ClientSeq, postEnterSceneRsp)
 }
 
-func (g *GameManager) ChangeGameTimeReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) ChangeGameTimeReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change game time, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.ChangeGameTimeReq)
 	gameTime := req.GameTime
 	world := g.worldManager.GetWorldByID(player.WorldId)
@@ -441,6 +411,10 @@ func (g *GameManager) MeetSceneEntityNotify(player *model.Player) {
 				continue
 			}
 			scenePlayer := g.userManager.GetOnlineUser(entity.uid)
+			if scenePlayer == nil {
+				logger.LOG.Error("get scene player is nil, world id: %v, scene id: %v", world.id, scene.id)
+				continue
+			}
 			if !scenePlayer.BornInScene {
 				continue
 			}

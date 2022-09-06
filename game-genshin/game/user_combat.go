@@ -7,14 +7,8 @@ import (
 	pb "google.golang.org/protobuf/proto"
 )
 
-func (g *GameManager) CombatInvocationsNotify(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) CombatInvocationsNotify(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	//logger.LOG.Debug("user combat invocations, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, user id: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.CombatInvocationsNotify)
 	world := g.worldManager.GetWorldByID(player.WorldId)
 	if world == nil {
@@ -118,14 +112,8 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, clientSeq uint32, p
 	}
 }
 
-func (g *GameManager) AbilityInvocationsNotify(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) AbilityInvocationsNotify(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	//logger.LOG.Debug("user ability invocations, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, user id: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.AbilityInvocationsNotify)
 	world := g.worldManager.GetWorldByID(player.WorldId)
 	if world == nil {
@@ -162,14 +150,8 @@ func (g *GameManager) AbilityInvocationsNotify(userId uint32, clientSeq uint32, 
 	}
 }
 
-func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	//logger.LOG.Debug("user client ability ok, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, user id: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.ClientAbilityInitFinishNotify)
 	world := g.worldManager.GetWorldByID(player.WorldId)
 	if world == nil {

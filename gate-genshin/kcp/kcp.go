@@ -32,7 +32,7 @@ const (
 )
 
 // monotonic reference time point
-var refTime time.Time = time.Now()
+var refTime = time.Now()
 
 // currentMs returns current elapsed monotonic milliseconds since program startup
 func currentMs() uint32 { return uint32(time.Since(refTime) / time.Millisecond) }

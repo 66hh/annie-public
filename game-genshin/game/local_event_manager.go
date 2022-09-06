@@ -29,6 +29,6 @@ func (l *LocalEventManager) LocalEventHandle(localEvent *LocalEvent) {
 		l.gameManager.OnLoginOk(playerLoginInfo.UserId, playerLoginInfo.Player, playerLoginInfo.ClientSeq)
 	case CheckUserExistOnRegFromDbFinish:
 		playerRegInfo := localEvent.Msg.(*PlayerRegInfo)
-		l.gameManager.PlayerReg(playerRegInfo.Exist, playerRegInfo.Req, playerRegInfo.UserId, playerRegInfo.ClientSeq)
+		l.gameManager.OnRegOk(playerRegInfo.Exist, playerRegInfo.Req, playerRegInfo.UserId, playerRegInfo.ClientSeq)
 	}
 }

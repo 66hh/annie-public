@@ -6,17 +6,12 @@ import (
 	"flswld.com/logger"
 	gdc "game-genshin/config"
 	"game-genshin/constant"
+	"game-genshin/model"
 	pb "google.golang.org/protobuf/proto"
 )
 
-func (g *GameManager) ChangeAvatarReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) ChangeAvatarReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user change avatar, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.ChangeAvatarReq)
 	targetAvatarGuid := req.Guid
 
@@ -49,20 +44,22 @@ func (g *GameManager) ChangeAvatarReq(userId uint32, clientSeq uint32, payloadMs
 	entity := scene.GetEntity(playerTeamEntity.avatarEntityMap[oldAvatarId])
 	entity.moveState = uint16(proto.MotionState_MOTION_STATE_STANDBY)
 
-	// TODO 目前多人游戏可能会存在问题 可能需要将原来的队伍里的角色实体放到世界里去才行 只是可能而已 待验证
-
 	// PacketSceneEntityDisappearNotify
 	sceneEntityDisappearNotify := new(proto.SceneEntityDisappearNotify)
 	sceneEntityDisappearNotify.DisappearType = proto.VisionType_VISION_TYPE_REPLACE
 	sceneEntityDisappearNotify.EntityList = []uint32{playerTeamEntity.avatarEntityMap[oldAvatarId]}
-	g.SendMsg(proto.ApiSceneEntityDisappearNotify, userId, player.ClientSeq, sceneEntityDisappearNotify)
+	for _, scenePlayer := range scene.playerMap {
+		g.SendMsg(proto.ApiSceneEntityDisappearNotify, scenePlayer.PlayerID, scenePlayer.ClientSeq, sceneEntityDisappearNotify)
+	}
 
 	// PacketSceneEntityAppearNotify
 	sceneEntityAppearNotify := new(proto.SceneEntityAppearNotify)
 	sceneEntityAppearNotify.AppearType = proto.VisionType_VISION_TYPE_REPLACE
 	sceneEntityAppearNotify.Param = playerTeamEntity.avatarEntityMap[oldAvatarId]
 	sceneEntityAppearNotify.EntityList = []*proto.SceneEntityInfo{g.PacketSceneEntityInfoAvatar(scene, player, player.TeamConfig.GetActiveAvatarId())}
-	g.SendMsg(proto.ApiSceneEntityAppearNotify, userId, player.ClientSeq, sceneEntityAppearNotify)
+	for _, scenePlayer := range scene.playerMap {
+		g.SendMsg(proto.ApiSceneEntityAppearNotify, scenePlayer.PlayerID, scenePlayer.ClientSeq, sceneEntityAppearNotify)
+	}
 
 	// PacketChangeAvatarRsp
 	changeAvatarRsp := new(proto.ChangeAvatarRsp)
@@ -71,14 +68,8 @@ func (g *GameManager) ChangeAvatarReq(userId uint32, clientSeq uint32, payloadMs
 	g.SendMsg(proto.ApiChangeAvatarRsp, userId, player.ClientSeq, changeAvatarRsp)
 }
 
-func (g *GameManager) SetUpAvatarTeamReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) SetUpAvatarTeamReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user set up avatar team, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.SetUpAvatarTeamReq)
 
 	teamId := req.TeamId
@@ -114,10 +105,15 @@ func (g *GameManager) SetUpAvatarTeamReq(userId uint32, clientSeq uint32, payloa
 
 	if world.multiplayer {
 		// TODO 多人世界队伍
-		// PacketSetUpAvatarTeamRsp
-		setUpAvatarTeamRsp := new(proto.SetUpAvatarTeamRsp)
-		setUpAvatarTeamRsp.Retcode = int32(proto.Retcode_RETCODE_RET_SVR_ERROR)
-		g.SendMsg(proto.ApiSetUpAvatarTeamRsp, userId, player.ClientSeq, setUpAvatarTeamRsp)
+
+		// PacketSceneTeamUpdateNotify
+		sceneTeamUpdateNotify := g.PacketSceneTeamUpdateNotify(world)
+		g.SendMsg(proto.ApiSceneTeamUpdateNotify, userId, player.ClientSeq, sceneTeamUpdateNotify)
+
+		// PacketChangeMpTeamAvatarRsp
+		changeMpTeamAvatarRsp := new(proto.ChangeMpTeamAvatarRsp)
+		changeMpTeamAvatarRsp.Retcode = int32(proto.Retcode_RETCODE_RET_SVR_ERROR)
+		g.SendMsg(proto.ApiChangeMpTeamAvatarRsp, userId, player.ClientSeq, changeMpTeamAvatarRsp)
 	} else {
 		// PacketAvatarTeamUpdateNotify
 		avatarTeamUpdateNotify := new(proto.AvatarTeamUpdateNotify)
@@ -140,7 +136,7 @@ func (g *GameManager) SetUpAvatarTeamReq(userId uint32, clientSeq uint32, payloa
 			player.TeamConfig.UpdateTeam()
 			scene := world.GetSceneById(player.SceneId)
 			scene.UpdatePlayerTeamEntity(player)
-			// TODO 还有一大堆没写 SceneTeamUpdateNotify
+
 			// PacketSceneTeamUpdateNotify
 			sceneTeamUpdateNotify := g.PacketSceneTeamUpdateNotify(world)
 			g.SendMsg(proto.ApiSceneTeamUpdateNotify, userId, player.ClientSeq, sceneTeamUpdateNotify)
@@ -174,14 +170,8 @@ func (g *GameManager) SetUpAvatarTeamReq(userId uint32, clientSeq uint32, payloa
 	}
 }
 
-func (g *GameManager) ChooseCurAvatarTeamReq(userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+func (g *GameManager) ChooseCurAvatarTeamReq(userId uint32, player *model.Player, clientSeq uint32, payloadMsg pb.Message) {
 	logger.LOG.Debug("user switch team, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	player.ClientSeq = clientSeq
 	req := payloadMsg.(*proto.ChooseCurAvatarTeamReq)
 	teamId := req.TeamId
 	world := g.worldManager.GetWorldByID(player.WorldId)
@@ -198,7 +188,6 @@ func (g *GameManager) ChooseCurAvatarTeamReq(userId uint32, clientSeq uint32, pa
 	scene := world.GetSceneById(player.SceneId)
 	scene.UpdatePlayerTeamEntity(player)
 
-	// TODO 还有一大堆没写 SceneTeamUpdateNotify
 	// PacketSceneTeamUpdateNotify
 	sceneTeamUpdateNotify := g.PacketSceneTeamUpdateNotify(world)
 	g.SendMsg(proto.ApiSceneTeamUpdateNotify, userId, player.ClientSeq, sceneTeamUpdateNotify)
