@@ -17,6 +17,7 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, player *model.Playe
 	scene := world.GetSceneById(player.SceneId)
 	invokeHandler := NewInvokeHandler[proto.CombatInvokeEntry]()
 	for _, entry := range req.InvokeList {
+		//logger.LOG.Debug("AT: %v, FT: %v, UID: %v", entry.ArgumentType, entry.ForwardType, player.PlayerID)
 		switch entry.ArgumentType {
 		case proto.CombatTypeArgument_COMBAT_TYPE_ARGUMENT_EVT_BEING_HIT:
 			scene.AddAttack(&Attack{
@@ -56,7 +57,7 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, player *model.Playe
 			}
 			activeAvatarId := player.TeamConfig.GetActiveAvatarId()
 			playerTeamEntity := scene.GetPlayerTeamEntity(player.PlayerID)
-			if entityMoveInfo.EntityId == playerTeamEntity.avatarEntityMap[activeAvatarId] {
+			if playerTeamEntity != nil && entityMoveInfo.EntityId == playerTeamEntity.avatarEntityMap[activeAvatarId] {
 				// 玩家在移动
 				team := player.TeamConfig.GetActiveTeam()
 				for _, avatarId := range team.AvatarIdList {
@@ -92,7 +93,7 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, player *model.Playe
 		combatInvocationsNotify := new(proto.CombatInvocationsNotify)
 		combatInvocationsNotify.InvokeList = invokeHandler.entryListForwardAll
 		for _, v := range scene.playerMap {
-			g.SendMsg(proto.ApiCombatInvocationsNotify, v.PlayerID, world.owner.ClientSeq, combatInvocationsNotify)
+			g.SendMsg(proto.ApiCombatInvocationsNotify, v.PlayerID, v.ClientSeq, combatInvocationsNotify)
 		}
 	}
 	if invokeHandler.AllExceptCurLen() > 0 {
@@ -102,7 +103,7 @@ func (g *GameManager) CombatInvocationsNotify(userId uint32, player *model.Playe
 			if player.PlayerID == v.PlayerID {
 				continue
 			}
-			g.SendMsg(proto.ApiCombatInvocationsNotify, v.PlayerID, world.owner.ClientSeq, combatInvocationsNotify)
+			g.SendMsg(proto.ApiCombatInvocationsNotify, v.PlayerID, v.ClientSeq, combatInvocationsNotify)
 		}
 	}
 	if invokeHandler.HostLen() > 0 {
@@ -122,6 +123,7 @@ func (g *GameManager) AbilityInvocationsNotify(userId uint32, player *model.Play
 	scene := world.GetSceneById(player.SceneId)
 	invokeHandler := NewInvokeHandler[proto.AbilityInvokeEntry]()
 	for _, entry := range req.Invokes {
+		//logger.LOG.Debug("AT: %v, FT: %v, UID: %v", entry.ArgumentType, entry.ForwardType, player.PlayerID)
 		invokeHandler.addEntry(entry.ForwardType, entry)
 	}
 
@@ -130,7 +132,7 @@ func (g *GameManager) AbilityInvocationsNotify(userId uint32, player *model.Play
 		abilityInvocationsNotify := new(proto.AbilityInvocationsNotify)
 		abilityInvocationsNotify.Invokes = invokeHandler.entryListForwardAll
 		for _, v := range scene.playerMap {
-			g.SendMsg(proto.ApiAbilityInvocationsNotify, v.PlayerID, world.owner.ClientSeq, abilityInvocationsNotify)
+			g.SendMsg(proto.ApiAbilityInvocationsNotify, v.PlayerID, v.ClientSeq, abilityInvocationsNotify)
 		}
 	}
 	if invokeHandler.AllExceptCurLen() > 0 {
@@ -140,7 +142,7 @@ func (g *GameManager) AbilityInvocationsNotify(userId uint32, player *model.Play
 			if player.PlayerID == v.PlayerID {
 				continue
 			}
-			g.SendMsg(proto.ApiAbilityInvocationsNotify, v.PlayerID, world.owner.ClientSeq, abilityInvocationsNotify)
+			g.SendMsg(proto.ApiAbilityInvocationsNotify, v.PlayerID, v.ClientSeq, abilityInvocationsNotify)
 		}
 	}
 	if invokeHandler.HostLen() > 0 {
@@ -160,6 +162,7 @@ func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, player *model
 	scene := world.GetSceneById(player.SceneId)
 	invokeHandler := NewInvokeHandler[proto.AbilityInvokeEntry]()
 	for _, entry := range req.Invokes {
+		//logger.LOG.Debug("AT: %v, FT: %v, UID: %v", entry.ArgumentType, entry.ForwardType, player.PlayerID)
 		invokeHandler.addEntry(entry.ForwardType, entry)
 	}
 
@@ -168,7 +171,7 @@ func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, player *model
 		clientAbilityInitFinishNotify := new(proto.ClientAbilityInitFinishNotify)
 		clientAbilityInitFinishNotify.Invokes = invokeHandler.entryListForwardAll
 		for _, v := range scene.playerMap {
-			g.SendMsg(proto.ApiClientAbilityInitFinishNotify, v.PlayerID, world.owner.ClientSeq, clientAbilityInitFinishNotify)
+			g.SendMsg(proto.ApiClientAbilityInitFinishNotify, v.PlayerID, v.ClientSeq, clientAbilityInitFinishNotify)
 		}
 	}
 	if invokeHandler.AllExceptCurLen() > 0 {
@@ -178,7 +181,7 @@ func (g *GameManager) ClientAbilityInitFinishNotify(userId uint32, player *model
 			if player.PlayerID == v.PlayerID {
 				continue
 			}
-			g.SendMsg(proto.ApiClientAbilityInitFinishNotify, v.PlayerID, world.owner.ClientSeq, clientAbilityInitFinishNotify)
+			g.SendMsg(proto.ApiClientAbilityInitFinishNotify, v.PlayerID, v.ClientSeq, clientAbilityInitFinishNotify)
 		}
 	}
 	if invokeHandler.HostLen() > 0 {
@@ -221,6 +224,9 @@ func (i *InvokeHandler[T]) addEntry(forward proto.ForwardType, entry *T) {
 	case proto.ForwardType_FORWARD_TYPE_TO_HOST:
 		i.entryListForwardHost = append(i.entryListForwardHost, entry)
 	default:
+		if forward != proto.ForwardType_FORWARD_TYPE_ONLY_SERVER {
+			logger.LOG.Error("forward: %v, entry: %v", forward, entry)
+		}
 	}
 }
 

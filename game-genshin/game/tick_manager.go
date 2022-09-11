@@ -68,6 +68,7 @@ func (t *TickManager) onTickHour(now int64) {
 func (t *TickManager) onTick10Minute(now int64) {
 	for _, world := range t.gameManager.worldManager.worldMap {
 		for _, player := range world.playerMap {
+			// 蓝球粉球
 			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 223, ChangeCount: 1}}, true, 0)
 			t.gameManager.AddUserItem(player.PlayerID, []*UserItem{{ItemId: 224, ChangeCount: 1}}, true, 0)
 		}
@@ -105,18 +106,42 @@ func (t *TickManager) onTickMinute(now int64) {
 
 func (t *TickManager) onTick10Second(now int64) {
 	for _, world := range t.gameManager.worldManager.worldMap {
-		for _, player := range world.playerMap {
-			// TODO 测试
-			team := player.TeamConfig.GetActiveTeam()
-			for _, avatarId := range team.AvatarIdList {
-				if avatarId == 0 {
-					break
+		if !world.IsBigWorld() && (world.multiplayer || !world.owner.Pause) {
+			// 刷怪
+			scene := world.GetSceneById(3)
+			monsterEntityCount := 0
+			for _, entity := range scene.entityMap {
+				if entity.entityType == uint32(proto.ProtEntityType_PROT_ENTITY_TYPE_MONSTER) {
+					monsterEntityCount++
 				}
-				avatar := player.AvatarMap[avatarId]
-				fightPropertyConst := constant.GetFightPropertyConst()
-				avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CUR_ATTACK)] = 1000000
-				avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CRITICAL)] = 1.0
-				t.gameManager.UpdateUserAvatarFightProp(player.PlayerID, avatarId)
+			}
+			if monsterEntityCount < 30 {
+				monsterEntityId := t.createMonster(scene)
+
+				// PacketSceneEntityAppearNotify
+				sceneEntityAppearNotify := new(proto.SceneEntityAppearNotify)
+				sceneEntityAppearNotify.AppearType = proto.VisionType_VISION_TYPE_BORN
+				sceneEntityInfo := t.gameManager.PacketSceneEntityInfoMonster(scene, monsterEntityId)
+				sceneEntityAppearNotify.EntityList = []*proto.SceneEntityInfo{sceneEntityInfo}
+				for _, scenePlayer := range scene.playerMap {
+					t.gameManager.SendMsg(proto.ApiSceneEntityAppearNotify, scenePlayer.PlayerID, 0, sceneEntityAppearNotify)
+				}
+			}
+		}
+		for _, player := range world.playerMap {
+			if world.multiplayer || !world.owner.Pause {
+				// 改面板
+				team := player.TeamConfig.GetActiveTeam()
+				for _, avatarId := range team.AvatarIdList {
+					if avatarId == 0 {
+						break
+					}
+					avatar := player.AvatarMap[avatarId]
+					fightPropertyConst := constant.GetFightPropertyConst()
+					avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CUR_ATTACK)] = 1000000
+					avatar.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CRITICAL)] = 1.0
+					t.gameManager.UpdateUserAvatarFightProp(player.PlayerID, avatarId)
+				}
 			}
 		}
 	}
@@ -124,6 +149,11 @@ func (t *TickManager) onTick10Second(now int64) {
 
 func (t *TickManager) onTick5Second(now int64) {
 	for _, world := range t.gameManager.worldManager.worldMap {
+		if world.IsBigWorld() {
+			for applyUid, _ := range world.owner.CoopApplyMap {
+				t.gameManager.UserDealEnterWorld(world.owner, applyUid, true)
+			}
+		}
 		for _, player := range world.playerMap {
 			if world.multiplayer {
 				// PacketWorldPlayerLocationNotify
@@ -186,27 +216,6 @@ func (t *TickManager) onTickSecond(now int64) {
 				worldPlayerRTTNotify.PlayerRttList = append(worldPlayerRTTNotify.PlayerRttList, playerRTTInfo)
 			}
 			t.gameManager.SendMsg(proto.ApiWorldPlayerRTTNotify, player.PlayerID, 0, worldPlayerRTTNotify)
-
-			// TODO 测试
-			scene := world.GetSceneById(3)
-			monsterEntityCount := 0
-			for _, entity := range scene.entityMap {
-				if entity.entityType == uint32(proto.ProtEntityType_PROT_ENTITY_TYPE_MONSTER) {
-					monsterEntityCount++
-				}
-			}
-			if monsterEntityCount < 30 {
-				monsterEntityId := t.createMonster(scene)
-
-				// PacketSceneEntityAppearNotify
-				sceneEntityAppearNotify := new(proto.SceneEntityAppearNotify)
-				sceneEntityAppearNotify.AppearType = proto.VisionType_VISION_TYPE_BORN
-				sceneEntityInfo := t.gameManager.PacketSceneEntityInfoMonster(scene, monsterEntityId)
-				sceneEntityAppearNotify.EntityList = []*proto.SceneEntityInfo{sceneEntityInfo}
-				for _, scenePlayer := range scene.playerMap {
-					t.gameManager.SendMsg(proto.ApiSceneEntityAppearNotify, scenePlayer.PlayerID, 0, sceneEntityAppearNotify)
-				}
-			}
 		}
 	}
 }

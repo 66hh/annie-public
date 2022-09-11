@@ -28,7 +28,7 @@ func (p *Player) GetItemGuid(itemId uint32) uint64 {
 func (p *Player) GetItemCount(itemId uint32) uint32 {
 	isVirtualItem, prop := p.GetVirtualItemProp(itemId)
 	if isVirtualItem {
-		value := p.Properties[prop]
+		value := p.PropertiesMap[prop]
 		return value
 	} else {
 		itemInfo := p.ItemMap[itemId]
@@ -70,9 +70,9 @@ func (p *Player) GetVirtualItemProp(itemId uint32) (isVirtualItem bool, prop uin
 func (p *Player) AddItem(itemId uint32, count uint32) {
 	isVirtualItem, prop := p.GetVirtualItemProp(itemId)
 	if isVirtualItem {
-		value := p.Properties[prop]
+		value := p.PropertiesMap[prop]
 		value += count
-		p.Properties[prop] = value
+		p.PropertiesMap[prop] = value
 	} else {
 		itemInfo := p.ItemMap[itemId]
 		if itemInfo == nil {
@@ -90,13 +90,13 @@ func (p *Player) AddItem(itemId uint32, count uint32) {
 func (p *Player) CostItem(itemId uint32, count uint32) {
 	isVirtualItem, prop := p.GetVirtualItemProp(itemId)
 	if isVirtualItem {
-		value := p.Properties[prop]
+		value := p.PropertiesMap[prop]
 		if value < count {
 			value = 0
 		} else {
 			value -= count
 		}
-		p.Properties[prop] = value
+		p.PropertiesMap[prop] = value
 	} else {
 		itemInfo := p.ItemMap[itemId]
 		if itemInfo == nil {

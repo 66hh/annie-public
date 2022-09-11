@@ -12,6 +12,7 @@ import (
 type WorldManager struct {
 	worldMap  map[uint32]*World
 	snowflake *alg.SnowflakeWorker
+	bigWorld  *World
 }
 
 func NewWorldManager(snowflake *alg.SnowflakeWorker) (r *WorldManager) {
@@ -37,7 +38,6 @@ func (w *WorldManager) CreateWorld(owner *model.Player, multiplayer bool) *World
 		playerMap:       make(map[uint32]*model.Player),
 		sceneMap:        make(map[uint32]*Scene),
 		entityIdCounter: 0,
-		peerIdCounter:   0,
 		worldLevel:      0,
 		multiplayer:     multiplayer,
 		mpLevelEntityId: 0,
@@ -53,8 +53,14 @@ func (w *WorldManager) DestroyWorld(worldId uint32) {
 	world := w.GetWorldByID(worldId)
 	for _, player := range world.playerMap {
 		world.RemovePlayer(player)
+		player.WorldId = 0
 	}
 	delete(w.worldMap, worldId)
+}
+
+func (w *WorldManager) InitBigWorld(owner *model.Player) {
+	w.bigWorld = w.GetWorldByID(owner.WorldId)
+	w.bigWorld.multiplayer = true
 }
 
 type World struct {
@@ -63,7 +69,6 @@ type World struct {
 	playerMap       map[uint32]*model.Player
 	sceneMap        map[uint32]*Scene
 	entityIdCounter uint32
-	peerIdCounter   uint32
 	worldLevel      uint8
 	multiplayer     bool
 	mpLevelEntityId uint32
@@ -76,18 +81,11 @@ func (w *World) GetNextWorldEntityId(entityType uint16) uint32 {
 	return ret
 }
 
-func (w *World) GetNextWorldPeerId() uint32 {
-	w.peerIdCounter++
-	return w.peerIdCounter
-}
-
 func (w *World) AddPlayer(player *model.Player, sceneId uint32) {
+	player.PeerId = uint32(len(w.playerMap) + 1)
 	w.playerMap[player.PlayerID] = player
 	scene := w.GetSceneById(sceneId)
 	scene.AddPlayer(player)
-	entityIdTypeConst := constant.GetEntityIdTypeConst()
-	player.TeamConfig.TeamEntityId = w.GetNextWorldEntityId(entityIdTypeConst.TEAM)
-	player.PeerId = w.GetNextWorldPeerId()
 }
 
 func (w *World) RemovePlayer(player *model.Player) {
@@ -126,6 +124,10 @@ func (w *World) GetChatList() []*proto.ChatInfo {
 	return w.chatMsgList
 }
 
+func (w *World) IsBigWorld() bool {
+	return w.owner.PlayerID == 1
+}
+
 type Scene struct {
 	id                  uint32
 	world               *World
@@ -152,6 +154,7 @@ type Entity struct {
 }
 
 type PlayerTeamEntity struct {
+	teamEntityId    uint32
 	avatarEntityMap map[uint32]uint32
 	weaponEntityMap map[uint64]uint32
 }
@@ -170,7 +173,9 @@ func (s *Scene) GetPlayerTeamEntity(userId uint32) *PlayerTeamEntity {
 }
 
 func (s *Scene) CreatePlayerTeamEntity(player *model.Player) {
+	entityIdTypeConst := constant.GetEntityIdTypeConst()
 	playerTeamEntity := &PlayerTeamEntity{
+		teamEntityId:    s.world.GetNextWorldEntityId(entityIdTypeConst.TEAM),
 		avatarEntityMap: make(map[uint32]uint32),
 		weaponEntityMap: make(map[uint64]uint32),
 	}
@@ -186,7 +191,9 @@ func (s *Scene) UpdatePlayerTeamEntity(player *model.Player) {
 			break
 		}
 		avatar := player.AvatarMap[avatarId]
+		s.DestroyEntity(playerTeamEntity.avatarEntityMap[avatarId])
 		playerTeamEntity.avatarEntityMap[avatarId] = s.CreateEntityAvatar(entityIdTypeConst.AVATAR, player, avatarId)
+		s.DestroyEntity(playerTeamEntity.weaponEntityMap[avatar.EquipWeapon.WeaponId])
 		playerTeamEntity.weaponEntityMap[avatar.EquipWeapon.WeaponId] = s.CreateEntityWeapon(entityIdTypeConst.WEAPON)
 	}
 }
@@ -194,15 +201,16 @@ func (s *Scene) UpdatePlayerTeamEntity(player *model.Player) {
 func (s *Scene) AddPlayer(player *model.Player) {
 	s.playerMap[player.PlayerID] = player
 	s.CreatePlayerTeamEntity(player)
+	s.UpdatePlayerTeamEntity(player)
 }
 
 func (s *Scene) RemovePlayer(player *model.Player) {
 	playerTeamEntity := s.GetPlayerTeamEntity(player.PlayerID)
 	for _, avatarEntityId := range playerTeamEntity.avatarEntityMap {
-		delete(s.entityMap, avatarEntityId)
+		s.DestroyEntity(avatarEntityId)
 	}
 	for _, weaponEntityId := range playerTeamEntity.weaponEntityMap {
-		delete(s.entityMap, weaponEntityId)
+		s.DestroyEntity(weaponEntityId)
 	}
 	delete(s.playerTeamEntityMap, player.PlayerID)
 	delete(s.playerMap, player.PlayerID)
@@ -332,7 +340,7 @@ func (s *Scene) AttackHandler(gameManager *GameManager) {
 		entityFightPropUpdateNotify.FightPropMap = make(map[uint32]float32)
 		entityFightPropUpdateNotify.FightPropMap[uint32(fightPropertyConst.FIGHT_PROP_CUR_HP)] = currHp
 		for _, player := range s.playerMap {
-			gameManager.SendMsg(proto.ApiEntityFightPropUpdateNotify, player.PlayerID, s.world.owner.ClientSeq, entityFightPropUpdateNotify)
+			gameManager.SendMsg(proto.ApiEntityFightPropUpdateNotify, player.PlayerID, player.ClientSeq, entityFightPropUpdateNotify)
 		}
 
 		combatData, err := pb.Marshal(hitInfo)
@@ -361,7 +369,7 @@ func (s *Scene) AttackHandler(gameManager *GameManager) {
 		combatInvocationsNotifyAll := new(proto.CombatInvocationsNotify)
 		combatInvocationsNotifyAll.InvokeList = combatInvokeEntryListAll
 		for _, player := range s.playerMap {
-			gameManager.SendMsg(proto.ApiCombatInvocationsNotify, player.PlayerID, s.world.owner.ClientSeq, combatInvocationsNotifyAll)
+			gameManager.SendMsg(proto.ApiCombatInvocationsNotify, player.PlayerID, player.ClientSeq, combatInvocationsNotifyAll)
 		}
 	}
 	if len(combatInvokeEntryListOther) > 0 {
@@ -372,7 +380,7 @@ func (s *Scene) AttackHandler(gameManager *GameManager) {
 				if player.PlayerID == uid {
 					continue
 				}
-				gameManager.SendMsg(proto.ApiCombatInvocationsNotify, player.PlayerID, s.world.owner.ClientSeq, combatInvocationsNotifyOther)
+				gameManager.SendMsg(proto.ApiCombatInvocationsNotify, player.PlayerID, player.ClientSeq, combatInvocationsNotifyOther)
 			}
 		}
 	}

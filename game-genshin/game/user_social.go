@@ -28,13 +28,14 @@ func (g *GameManager) GetPlayerSocialDetailReq(userId uint32, player *model.Play
 		socialDetail.Nickname = targetPlayer.NickName
 		socialDetail.Signature = targetPlayer.Signature
 		playerPropertyConst := constant.GetPlayerPropertyConst()
-		socialDetail.Level = targetPlayer.Properties[playerPropertyConst.PROP_PLAYER_LEVEL]
+		socialDetail.Level = targetPlayer.PropertiesMap[playerPropertyConst.PROP_PLAYER_LEVEL]
 		socialDetail.Birthday = &proto.Birthday{Month: 2, Day: 13}
-		socialDetail.WorldLevel = targetPlayer.Properties[playerPropertyConst.PROP_PLAYER_WORLD_LEVEL]
+		socialDetail.WorldLevel = targetPlayer.PropertiesMap[playerPropertyConst.PROP_PLAYER_WORLD_LEVEL]
 		socialDetail.NameCardId = targetPlayer.NameCard
 		socialDetail.IsShowAvatar = false
 		socialDetail.FinishAchievementNum = 0
-		socialDetail.IsFriend = false
+		_, exist := player.FriendList[targetPlayer.PlayerID]
+		socialDetail.IsFriend = exist
 		getPlayerSocialDetailRsp.DetailData = socialDetail
 	} else {
 		getPlayerSocialDetailRsp.Retcode = int32(proto.Retcode_RETCODE_RET_PLAYER_NOT_EXIST)
@@ -142,7 +143,7 @@ func (g *GameManager) GetPlayerFriendListReq(userId uint32, player *model.Player
 	// PacketGetPlayerFriendListRsp
 	getPlayerFriendListRsp := new(proto.GetPlayerFriendListRsp)
 	getPlayerFriendListRsp.FriendList = make([]*proto.FriendBrief, 0)
-	for _, uid := range player.FriendList {
+	for uid, _ := range player.FriendList {
 		// TODO 同步阻塞待优化
 		var onlineState proto.FriendOnlineState
 		online := g.userManager.GetUserOnlineState(uid)
@@ -160,9 +161,9 @@ func (g *GameManager) GetPlayerFriendListReq(userId uint32, player *model.Player
 		friendBrief := &proto.FriendBrief{
 			Uid:               friendPlayer.PlayerID,
 			Nickname:          friendPlayer.NickName,
-			Level:             friendPlayer.Properties[playerPropertyConst.PROP_PLAYER_LEVEL],
+			Level:             friendPlayer.PropertiesMap[playerPropertyConst.PROP_PLAYER_LEVEL],
 			ProfilePicture:    &proto.ProfilePicture{AvatarId: friendPlayer.HeadImage},
-			WorldLevel:        friendPlayer.Properties[playerPropertyConst.PROP_PLAYER_WORLD_LEVEL],
+			WorldLevel:        friendPlayer.PropertiesMap[playerPropertyConst.PROP_PLAYER_WORLD_LEVEL],
 			Signature:         friendPlayer.Signature,
 			OnlineState:       onlineState,
 			IsMpModeAvailable: true,
@@ -183,7 +184,7 @@ func (g *GameManager) GetPlayerAskFriendListReq(userId uint32, player *model.Pla
 	// PacketGetPlayerAskFriendListRsp
 	getPlayerAskFriendListRsp := new(proto.GetPlayerAskFriendListRsp)
 	getPlayerAskFriendListRsp.AskFriendList = make([]*proto.FriendBrief, 0)
-	for _, uid := range player.FriendApplyList {
+	for uid, _ := range player.FriendApplyList {
 		// TODO 同步阻塞待优化
 		var onlineState proto.FriendOnlineState
 		online := g.userManager.GetUserOnlineState(uid)
@@ -201,9 +202,9 @@ func (g *GameManager) GetPlayerAskFriendListReq(userId uint32, player *model.Pla
 		friendBrief := &proto.FriendBrief{
 			Uid:               friendPlayer.PlayerID,
 			Nickname:          friendPlayer.NickName,
-			Level:             friendPlayer.Properties[playerPropertyConst.PROP_PLAYER_LEVEL],
+			Level:             friendPlayer.PropertiesMap[playerPropertyConst.PROP_PLAYER_LEVEL],
 			ProfilePicture:    &proto.ProfilePicture{AvatarId: friendPlayer.HeadImage},
-			WorldLevel:        friendPlayer.Properties[playerPropertyConst.PROP_PLAYER_WORLD_LEVEL],
+			WorldLevel:        friendPlayer.PropertiesMap[playerPropertyConst.PROP_PLAYER_WORLD_LEVEL],
 			Signature:         friendPlayer.Signature,
 			OnlineState:       onlineState,
 			IsMpModeAvailable: true,
@@ -230,22 +231,13 @@ func (g *GameManager) AskAddFriendReq(userId uint32, player *model.Player, clien
 		logger.LOG.Error("apply add friend target player is nil, userId: %v", userId)
 		return
 	}
-	exist := false
-	for _, uid := range targetPlayer.FriendApplyList {
-		if uid == player.PlayerID {
-			exist = true
-		}
-	}
-	for _, uid := range targetPlayer.FriendList {
-		if uid == player.PlayerID {
-			exist = true
-		}
-	}
-	if exist {
+	_, applyExist := targetPlayer.FriendApplyList[player.PlayerID]
+	_, friendExist := targetPlayer.FriendList[player.PlayerID]
+	if applyExist || friendExist {
 		logger.LOG.Error("friend or apply already exist, user id: %v", userId)
 		return
 	}
-	targetPlayer.FriendApplyList = append(targetPlayer.FriendApplyList, player.PlayerID)
+	targetPlayer.FriendApplyList[player.PlayerID] = true
 
 	if targetPlayerOnline {
 		playerPropertyConst := constant.GetPlayerPropertyConst()
@@ -255,9 +247,9 @@ func (g *GameManager) AskAddFriendReq(userId uint32, player *model.Player, clien
 		askAddFriendNotify.TargetFriendBrief = &proto.FriendBrief{
 			Uid:               player.PlayerID,
 			Nickname:          player.NickName,
-			Level:             player.Properties[playerPropertyConst.PROP_PLAYER_LEVEL],
+			Level:             player.PropertiesMap[playerPropertyConst.PROP_PLAYER_LEVEL],
 			ProfilePicture:    &proto.ProfilePicture{AvatarId: player.HeadImage},
-			WorldLevel:        player.Properties[playerPropertyConst.PROP_PLAYER_WORLD_LEVEL],
+			WorldLevel:        player.PropertiesMap[playerPropertyConst.PROP_PLAYER_WORLD_LEVEL],
 			Signature:         player.Signature,
 			OnlineState:       proto.FriendOnlineState_FRIEND_ONLINE_STATE_ONLINE,
 			IsMpModeAvailable: true,
@@ -283,24 +275,16 @@ func (g *GameManager) DealAddFriendReq(userId uint32, player *model.Player, clie
 	result := req.DealAddFriendResult
 
 	if result == proto.DealAddFriendResultType_DEAL_ADD_FRIEND_RESULT_TYPE_ACCEPT {
-		player.FriendList = append(player.FriendList, targetUid)
+		player.FriendList[targetUid] = true
 		// TODO 同步阻塞待优化
 		targetPlayer := g.userManager.LoadTempOfflineUserSync(targetUid)
 		if targetPlayer == nil {
 			logger.LOG.Error("agree friend apply target player is nil, userId: %v", userId)
 			return
 		}
-		targetPlayer.FriendList = append(targetPlayer.FriendList, player.PlayerID)
+		targetPlayer.FriendList[player.PlayerID] = true
 	}
-
-	newFriendApplyList := make([]uint32, 0)
-	for _, uid := range player.FriendApplyList {
-		if uid == targetUid {
-			continue
-		}
-		newFriendApplyList = append(newFriendApplyList, uid)
-	}
-	player.FriendApplyList = newFriendApplyList
+	delete(player.FriendApplyList, targetUid)
 
 	// PacketDealAddFriendRsp
 	dealAddFriendRsp := new(proto.DealAddFriendRsp)
@@ -345,8 +329,8 @@ func (g *GameManager) PacketOnlinePlayerInfo(player *model.Player) *proto.Online
 	onlinePlayerInfo := &proto.OnlinePlayerInfo{
 		Uid:                 player.PlayerID,
 		Nickname:            player.NickName,
-		PlayerLevel:         player.Properties[playerPropertyConst.PROP_PLAYER_LEVEL],
-		MpSettingType:       proto.MpSettingType(player.MpSetting),
+		PlayerLevel:         player.PropertiesMap[playerPropertyConst.PROP_PLAYER_LEVEL],
+		MpSettingType:       proto.MpSettingType(player.PropertiesMap[playerPropertyConst.PROP_PLAYER_MP_SETTING_TYPE]),
 		NameCardId:          player.NameCard,
 		Signature:           player.Signature,
 		ProfilePicture:      &proto.ProfilePicture{AvatarId: player.HeadImage},

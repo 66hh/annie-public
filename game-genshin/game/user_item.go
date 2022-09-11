@@ -103,9 +103,9 @@ func (g *GameManager) AddUserItem(userId uint32, itemList []*UserItem, isHint bo
 		}
 		playerPropNotify.PropMap[uint32(prop)] = &proto.PropValue{
 			Type: uint32(prop),
-			Val:  int64(player.Properties[prop]),
+			Val:  int64(player.PropertiesMap[prop]),
 			Value: &proto.PropValue_Ival{
-				Ival: int64(player.Properties[prop]),
+				Ival: int64(player.PropertiesMap[prop]),
 			},
 		}
 	}
@@ -171,9 +171,9 @@ func (g *GameManager) CostUserItem(userId uint32, itemList []*UserItem) {
 		}
 		playerPropNotify.PropMap[uint32(prop)] = &proto.PropValue{
 			Type: uint32(prop),
-			Val:  int64(player.Properties[prop]),
+			Val:  int64(player.PropertiesMap[prop]),
 			Value: &proto.PropValue_Ival{
-				Ival: int64(player.Properties[prop]),
+				Ival: int64(player.PropertiesMap[prop]),
 			},
 		}
 	}

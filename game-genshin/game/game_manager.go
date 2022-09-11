@@ -5,6 +5,7 @@ import (
 	"flswld.com/gate-genshin-api/proto"
 	"flswld.com/logger"
 	"game-genshin/dao"
+	"game-genshin/model"
 	"game-genshin/rpc"
 	pb "google.golang.org/protobuf/proto"
 )
@@ -39,6 +40,14 @@ func NewGameManager(dao *dao.Dao, rpcManager *rpc.RpcManager, netMsgInput chan *
 	r.userManager = NewUserManager(dao, r.localEventManager.localEventChan)
 	r.worldManager = NewWorldManager(r.snowflake)
 	r.tickManager = NewTickManager(r)
+
+	bigWorldOwner := r.CreatePlayer(1, "大世界的主人", 10000007)
+	r.userManager.AddUser(bigWorldOwner)
+	bigWorldOwner.DbState = model.DbNormal
+	r.OnLogin(bigWorldOwner.PlayerID, 0)
+	bigWorldOwner.SceneLoadState = model.SceneEnterDone
+	r.worldManager.InitBigWorld(bigWorldOwner)
+
 	return r
 }
 
@@ -64,6 +73,9 @@ func (g *GameManager) Start() {
 
 // 发送消息给客户端
 func (g *GameManager) SendMsg(apiId uint16, userId uint32, clientSeq uint32, payloadMsg pb.Message) {
+	if userId < 100000000 {
+		return
+	}
 	netMsg := new(proto.NetMsg)
 	netMsg.UserId = userId
 	netMsg.EventId = proto.NormalMsg

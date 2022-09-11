@@ -55,19 +55,18 @@ func (a *ApiProtoMap) registerAllMessage() {
 	a.registerMessage(ApiAskAddFriendReq, &AskAddFriendReq{})                               // 加好友请求
 	a.registerMessage(ApiDealAddFriendReq, &DealAddFriendReq{})                             // 处理好友申请请求
 	a.registerMessage(ApiGetOnlinePlayerListReq, &GetOnlinePlayerListReq{})                 // 在线玩家列表请求
-	a.registerMessage(ApiPathfindingEnterSceneReq, &NullMsg{})                              // 寻路进入场景请求
-	a.registerMessage(ApiSceneInitFinishReq, &NullMsg{})                                    // 场景初始化完成请求
-	a.registerMessage(ApiEnterSceneDoneReq, &NullMsg{})                                     // 进入场景完成请求
-	a.registerMessage(ApiPostEnterSceneReq, &NullMsg{})                                     // 提交进入场景请求
-	a.registerMessage(ApiTowerAllDataReq, &NullMsg{})                                       // 深渊数据请求
-	a.registerMessage(ApiGetGachaInfoReq, &NullMsg{})                                       // 卡池获取请求
-	a.registerMessage(ApiGetAllUnlockNameCardReq, &NullMsg{})                               // 获取全部已解锁名片请求
-	a.registerMessage(ApiGetPlayerFriendListReq, &NullMsg{})                                // 好友列表请求
-	a.registerMessage(ApiGetPlayerAskFriendListReq, &NullMsg{})                             // 好友申请列表请求
-	a.registerMessage(ApiPlayerForceExitReq, &NullMsg{})                                    // 退出游戏请求
+	a.registerMessage(ApiPathfindingEnterSceneReq, &PathfindingEnterSceneReq{})             // 寻路进入场景请求
+	a.registerMessage(ApiSceneInitFinishReq, &SceneInitFinishReq{})                         // 场景初始化完成请求
+	a.registerMessage(ApiEnterSceneDoneReq, &EnterSceneDoneReq{})                           // 进入场景完成请求
+	a.registerMessage(ApiPostEnterSceneReq, &PostEnterSceneReq{})                           // 提交进入场景请求
+	a.registerMessage(ApiTowerAllDataReq, &TowerAllDataReq{})                               // 深渊数据请求
+	a.registerMessage(ApiGetGachaInfoReq, &GetGachaInfoReq{})                               // 卡池获取请求
+	a.registerMessage(ApiGetAllUnlockNameCardReq, &GetAllUnlockNameCardReq{})               // 获取全部已解锁名片请求
+	a.registerMessage(ApiGetPlayerFriendListReq, &GetPlayerFriendListReq{})                 // 好友列表请求
+	a.registerMessage(ApiGetPlayerAskFriendListReq, &GetPlayerAskFriendListReq{})           // 好友申请列表请求
+	a.registerMessage(ApiPlayerForceExitReq, &PlayerForceExitReq{})                         // 退出游戏请求
 	a.registerMessage(ApiPlayerApplyEnterMpReq, &PlayerApplyEnterMpReq{})                   // 世界敲门请求
 	a.registerMessage(ApiPlayerApplyEnterMpResultReq, &PlayerApplyEnterMpResultReq{})       // 世界敲门处理请求
-	a.registerMessage(ApiPlayerGetForceQuitBanInfoReq, &NullMsg{})                          // 退出世界请求
 	a.registerMessage(ApiGetPlayerTokenRsp, &GetPlayerTokenRsp{})                           // 获取玩家token响应
 	a.registerMessage(ApiPlayerLoginRsp, &PlayerLoginRsp{})                                 // 玩家登录响应
 	a.registerMessage(ApiPingRsp, &PingRsp{})                                               // ping响应
@@ -110,7 +109,6 @@ func (a *ApiProtoMap) registerAllMessage() {
 	a.registerMessage(ApiSceneEntityDisappearNotify, &SceneEntityDisappearNotify{})         // 场景实体消失通知
 	a.registerMessage(ApiChangeAvatarRsp, &ChangeAvatarRsp{})                               // 更换角色响应
 	a.registerMessage(ApiSetUpAvatarTeamRsp, &SetUpAvatarTeamRsp{})                         // 配置队伍响应
-	a.registerMessage(ApiChangeMpTeamAvatarRsp, &ChangeMpTeamAvatarRsp{})                   // 配置多人游戏队伍响应
 	a.registerMessage(ApiAvatarTeamUpdateNotify, &AvatarTeamUpdateNotify{})                 // 角色队伍更新通知
 	a.registerMessage(ApiChooseCurAvatarTeamRsp, &ChooseCurAvatarTeamRsp{})                 // 切换队伍响应
 	a.registerMessage(ApiStoreItemChangeNotify, &StoreItemChangeNotify{})                   // 背包道具变动通知
@@ -139,17 +137,16 @@ func (a *ApiProtoMap) registerAllMessage() {
 	a.registerMessage(ApiAskAddFriendNotify, &AskAddFriendNotify{})                         // 加好友通知
 	a.registerMessage(ApiDealAddFriendRsp, &DealAddFriendRsp{})                             // 处理好友申请响应
 	a.registerMessage(ApiGetOnlinePlayerListRsp, &GetOnlinePlayerListRsp{})                 // 在线玩家列表响应
-	a.registerMessage(ApiSceneForceUnlockNotify, &NullMsg{})                                // 场景强制解锁通知
-	a.registerMessage(ApiSetPlayerBornDataRsp, &NullMsg{})                                  // 注册响应
-	a.registerMessage(ApiDoSetPlayerBornDataNotify, &NullMsg{})                             // 注册通知
-	a.registerMessage(ApiPathfindingEnterSceneRsp, &NullMsg{})                              // 寻路进入场景响应
-	a.registerMessage(ApiPlayerForceExitRsp, &NullMsg{})                                    // 退出游戏响应
+	a.registerMessage(ApiSceneForceUnlockNotify, &SceneForceUnlockNotify{})                 // 场景强制解锁通知
+	a.registerMessage(ApiSetPlayerBornDataRsp, &SetPlayerBornDataRsp{})                     // 注册响应
+	a.registerMessage(ApiDoSetPlayerBornDataNotify, &DoSetPlayerBornDataNotify{})           // 注册通知
+	a.registerMessage(ApiPathfindingEnterSceneRsp, &PathfindingEnterSceneRsp{})             // 寻路进入场景响应
+	a.registerMessage(ApiPlayerForceExitRsp, &PlayerForceExitRsp{})                         // 退出游戏响应
 	a.registerMessage(ApiDelTeamEntityNotify, &DelTeamEntityNotify{})                       // 删除队伍实体通知
 	a.registerMessage(ApiPlayerApplyEnterMpRsp, &PlayerApplyEnterMpRsp{})                   // 世界敲门响应
 	a.registerMessage(ApiPlayerApplyEnterMpNotify, &PlayerApplyEnterMpNotify{})             // 世界敲门通知
 	a.registerMessage(ApiPlayerApplyEnterMpResultRsp, &PlayerApplyEnterMpResultRsp{})       // 世界敲门处理响应
 	a.registerMessage(ApiPlayerApplyEnterMpResultNotify, &PlayerApplyEnterMpResultNotify{}) // 世界敲门处理通知
-	a.registerMessage(ApiPlayerGetForceQuitBanInfoRsp, &PlayerGetForceQuitBanInfoRsp{})     // 退出世界响应
 	a.registerMessage(ApiGetShopmallDataReq, &GetShopmallDataReq{})                         // 商店信息请求
 	a.registerMessage(ApiGetShopmallDataRsp, &GetShopmallDataRsp{})                         // 商店信息响应
 	a.registerMessage(ApiGetShopReq, &GetShopReq{})                                         // 商店详情请求
@@ -176,14 +173,27 @@ func (a *ApiProtoMap) registerAllMessage() {
 	a.registerMessage(ApiPlayerChatReq, &PlayerChatReq{})                                   // 多人聊天消息发送请求
 	a.registerMessage(ApiPlayerChatRsp, &PlayerChatRsp{})                                   // 多人聊天消息发送响应
 	a.registerMessage(ApiPlayerChatNotify, &PlayerChatNotify{})                             // 多人聊天消息通知
+	a.registerMessage(ApiPlayerGetForceQuitBanInfoReq, &PlayerGetForceQuitBanInfoReq{})     // 获取强退禁令信息请求
+	a.registerMessage(ApiPlayerGetForceQuitBanInfoRsp, &PlayerGetForceQuitBanInfoRsp{})     // 获取强退禁令信息响应
+	a.registerMessage(ApiBackMyWorldReq, &BackMyWorldReq{})                                 // 返回单人世界请求
+	a.registerMessage(ApiBackMyWorldRsp, &BackMyWorldRsp{})                                 // 返回单人世界响应
+	a.registerMessage(ApiChangeWorldToSingleModeReq, &ChangeWorldToSingleModeReq{})         // 转换单人模式请求
+	a.registerMessage(ApiChangeWorldToSingleModeRsp, &ChangeWorldToSingleModeRsp{})         // 转换单人模式响应
+	a.registerMessage(ApiSceneKickPlayerReq, &SceneKickPlayerReq{})                         // 剔除玩家请求
+	a.registerMessage(ApiSceneKickPlayerRsp, &SceneKickPlayerRsp{})                         // 剔除玩家响应
+	a.registerMessage(ApiSceneKickPlayerNotify, &SceneKickPlayerNotify{})                   // 剔除玩家通知
+	a.registerMessage(ApiPlayerQuitFromMpNotify, &PlayerQuitFromMpNotify{})                 // 退出多人游戏通知
+	a.registerMessage(ApiClientReconnectNotify, &ClientReconnectNotify{})                   // 在线重连通知
+	a.registerMessage(ApiChangeMpTeamAvatarReq, &ChangeMpTeamAvatarReq{})                   // 配置多人游戏队伍请求
+	a.registerMessage(ApiChangeMpTeamAvatarRsp, &ChangeMpTeamAvatarRsp{})                   // 配置多人游戏队伍响应
 	// 尚未得知的客户端上行消息
 	a.registerMessage(ApiClientAbilityChangeNotify, &ClientAbilityChangeNotify{})             // 未知
 	a.registerMessage(ApiEvtAiSyncSkillCdNotify, &EvtAiSyncSkillCdNotify{})                   // 未知
 	a.registerMessage(ApiEvtAiSyncCombatThreatInfoNotify, &EvtAiSyncCombatThreatInfoNotify{}) // 未知
-	a.registerMessage(ApiEntityConfigHashNotify, &NullMsg{})                                  // 未知
-	a.registerMessage(ApiMonsterAIConfigHashNotify, &NullMsg{})                               // 未知
-	a.registerMessage(ApiGetRegionSearchReq, &NullMsg{})                                      // 未知
-	a.registerMessage(ApiObstacleModifyNotify, &NullMsg{})                                    // 未知
+	a.registerMessage(ApiEntityConfigHashNotify, &EntityConfigHashNotify{})                   // 未知
+	a.registerMessage(ApiMonsterAIConfigHashNotify, &MonsterAIConfigHashNotify{})             // 未知
+	a.registerMessage(ApiGetRegionSearchReq, &GetRegionSearchReq{})                           // 未知
+	a.registerMessage(ApiObstacleModifyNotify, &ObstacleModifyNotify{})                       // 未知
 	// TODO
 	a.registerMessage(ApiEvtDoSkillSuccNotify, &EvtDoSkillSuccNotify{})
 	a.registerMessage(ApiEvtCreateGadgetNotify, &EvtCreateGadgetNotify{})

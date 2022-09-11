@@ -21,27 +21,25 @@ func (g *GameManager) OnLogin(userId uint32, clientSeq uint32) {
 
 func (g *GameManager) OnLoginOk(userId uint32, player *model.Player, clientSeq uint32) {
 	if player == nil {
-		g.SendMsg(proto.ApiDoSetPlayerBornDataNotify, userId, clientSeq, new(proto.NullMsg))
+		g.SendMsg(proto.ApiDoSetPlayerBornDataNotify, userId, clientSeq, new(proto.DoSetPlayerBornDataNotify))
 		return
 	}
 	player.OnlineTime = uint32(time.Now().UnixMilli())
 	player.Online = true
+
 	// TODO 3.0.0REL版本 目前存在当前队伍活跃角色非主角时 登录进不去场景的情况 所以暂时先把四号队伍作为仅存在主角的保留队伍
+	team := player.TeamConfig.GetTeamByIndex(3)
+	team.AvatarIdList = []uint32{player.MainCharAvatarId, 0, 0, 0}
 	player.TeamConfig.CurrTeamIndex = 3
 	player.TeamConfig.CurrAvatarIndex = 0
+
+	// 初始化
+	player.InitAll()
+	player.TeamConfig.UpdateTeam()
 	// 创建世界
 	world := g.worldManager.CreateWorld(player, false)
 	world.AddPlayer(player, player.SceneId)
 	player.WorldId = world.id
-	// 初始化
-	player.InitAll()
-	playerPropertyConst := constant.GetPlayerPropertyConst()
-	player.Properties[playerPropertyConst.PROP_PLAYER_MP_SETTING_TYPE] = player.MpSetting
-	player.Properties[playerPropertyConst.PROP_IS_MP_MODE_AVAILABLE] = 1
-	//g.userManager.UpdateUser(player)
-	player.TeamConfig.UpdateTeam()
-	scene := world.GetSceneById(player.SceneId)
-	scene.UpdatePlayerTeamEntity(player)
 
 	// PacketPlayerDataNotify
 	playerDataNotify := new(proto.PlayerDataNotify)
@@ -50,7 +48,7 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player, clientSeq u
 	playerDataNotify.IsFirstLoginToday = true
 	playerDataNotify.RegionId = player.RegionId
 	playerDataNotify.PropMap = make(map[uint32]*proto.PropValue)
-	for k, v := range player.Properties {
+	for k, v := range player.PropertiesMap {
 		propValue := new(proto.PropValue)
 		propValue.Type = uint32(k)
 		propValue.Value = &proto.PropValue_Ival{Ival: int64(v)}
@@ -183,13 +181,11 @@ func (g *GameManager) OnLoginOk(userId uint32, player *model.Player, clientSeq u
 	}
 	g.SendMsg(proto.ApiAvatarDataNotify, userId, clientSeq, avatarDataNotify)
 
-	player.BornInScene = false
+	player.SceneLoadState = model.SceneNone
 
 	// PacketPlayerEnterSceneNotify
 	playerEnterSceneNotify := g.PacketPlayerEnterSceneNotify(player)
 	g.SendMsg(proto.ApiPlayerEnterSceneNotify, userId, clientSeq, playerEnterSceneNotify)
-
-	//g.userManager.UpdateUser(player)
 
 	// PacketOpenStateUpdateNotify
 	openStateUpdateNotify := new(proto.OpenStateUpdateNotify)
@@ -219,15 +215,41 @@ func (g *GameManager) OnRegOk(exist bool, req *proto.SetPlayerBornDataReq, userI
 		return
 	}
 
+	nickName := req.NickName
 	mainCharAvatarId := req.GetAvatarId()
 	if mainCharAvatarId != 10000005 && mainCharAvatarId != 10000007 {
 		logger.LOG.Error("invalid main char avatar id: %v", mainCharAvatarId)
 		return
 	}
 
+	player := g.CreatePlayer(userId, nickName, mainCharAvatarId)
+	g.userManager.AddUser(player)
+
+	g.SendMsg(proto.ApiSetPlayerBornDataRsp, userId, clientSeq, new(proto.SetPlayerBornDataRsp))
+	g.OnLogin(userId, clientSeq)
+}
+
+func (g *GameManager) OnUserOffline(userId uint32) {
+	logger.LOG.Info("user offline, user id: %v", userId)
+	player := g.userManager.GetOnlineUser(userId)
+	if player == nil {
+		logger.LOG.Error("player is nil, userId: %v", userId)
+		return
+	}
+	world := g.worldManager.GetWorldByID(player.WorldId)
+	if world != nil {
+		g.UserWorldRemovePlayer(world, player)
+	}
+	player.OfflineTime = uint32(time.Now().Unix())
+	player.Online = false
+	player.TotalOnlineTime += uint32(time.Now().UnixMilli()) - player.OnlineTime
+	g.userManager.OfflineUser(player)
+}
+
+func (g *GameManager) CreatePlayer(userId uint32, nickName string, mainCharAvatarId uint32) *model.Player {
 	player := new(model.Player)
 	player.PlayerID = userId
-	player.NickName = req.NickName
+	player.NickName = nickName
 	player.Signature = "惟愿时光记忆，一路繁花千树。"
 	player.MainCharAvatarId = mainCharAvatarId
 	player.HeadImage = mainCharAvatarId
@@ -235,13 +257,13 @@ func (g *GameManager) OnRegOk(exist bool, req *proto.SetPlayerBornDataReq, userI
 	player.NameCardList = make([]uint32, 0)
 	player.NameCardList = append(player.NameCardList, 210001, 210042)
 
-	player.FriendList = make([]uint32, 0)
-	player.FriendApplyList = make([]uint32, 0)
+	player.FriendList = make(map[uint32]bool)
+	player.FriendApplyList = make(map[uint32]bool)
 
 	player.RegionId = 1
 	player.SceneId = 3
 
-	player.Properties = make(map[uint16]uint32)
+	player.PropertiesMap = make(map[uint16]uint32)
 	playerPropertyConst := constant.GetPlayerPropertyConst()
 	// 初始化所有属性
 	propList := reflection.ConvStructToMap(playerPropertyConst)
@@ -254,17 +276,19 @@ func (g *GameManager) OnRegOk(exist bool, req *proto.SetPlayerBornDataReq, userI
 			continue
 		}
 		value := fieldValue.(uint16)
-		player.Properties[value] = 0
+		player.PropertiesMap[value] = 0
 	}
-	player.Properties[playerPropertyConst.PROP_PLAYER_LEVEL] = 1
-	player.Properties[playerPropertyConst.PROP_PLAYER_WORLD_LEVEL] = 0
-	player.Properties[playerPropertyConst.PROP_IS_SPRING_AUTO_USE] = 1
-	player.Properties[playerPropertyConst.PROP_SPRING_AUTO_USE_PERCENT] = 100
-	player.Properties[playerPropertyConst.PROP_IS_FLYABLE] = 1
-	player.Properties[playerPropertyConst.PROP_IS_TRANSFERABLE] = 1
-	player.Properties[playerPropertyConst.PROP_MAX_STAMINA] = 24000
-	player.Properties[playerPropertyConst.PROP_CUR_PERSIST_STAMINA] = 24000
-	player.Properties[playerPropertyConst.PROP_PLAYER_RESIN] = 160
+	player.PropertiesMap[playerPropertyConst.PROP_PLAYER_LEVEL] = 1
+	player.PropertiesMap[playerPropertyConst.PROP_PLAYER_WORLD_LEVEL] = 0
+	player.PropertiesMap[playerPropertyConst.PROP_IS_SPRING_AUTO_USE] = 1
+	player.PropertiesMap[playerPropertyConst.PROP_SPRING_AUTO_USE_PERCENT] = 100
+	player.PropertiesMap[playerPropertyConst.PROP_IS_FLYABLE] = 1
+	player.PropertiesMap[playerPropertyConst.PROP_IS_TRANSFERABLE] = 1
+	player.PropertiesMap[playerPropertyConst.PROP_MAX_STAMINA] = 24000
+	player.PropertiesMap[playerPropertyConst.PROP_CUR_PERSIST_STAMINA] = 24000
+	player.PropertiesMap[playerPropertyConst.PROP_PLAYER_RESIN] = 160
+	player.PropertiesMap[playerPropertyConst.PROP_PLAYER_MP_SETTING_TYPE] = 2
+	player.PropertiesMap[playerPropertyConst.PROP_IS_MP_MODE_AVAILABLE] = 1
 
 	player.FlyCloakList = make([]uint32, 0)
 	player.FlyCloakList = append(player.FlyCloakList, 140001)
@@ -292,8 +316,6 @@ func (g *GameManager) OnRegOk(exist bool, req *proto.SetPlayerBornDataReq, userI
 
 	player.Pos = &model.Vector{X: 2747, Y: 194, Z: -1719}
 	player.Rot = &model.Vector{X: 0, Y: 307, Z: 0}
-
-	player.MpSetting = uint32(proto.MpSettingType_MP_SETTING_TYPE_ENTER_AFTER_APPLY)
 
 	player.ItemMap = make(map[uint32]*model.Item)
 	player.WeaponMap = make(map[uint64]*model.Weapon)
@@ -337,28 +359,8 @@ func (g *GameManager) OnRegOk(exist bool, req *proto.SetPlayerBornDataReq, userI
 	// 角色装上初始武器
 	player.WearWeapon(mainCharAvatarId, weaponId)
 
-	player.TeamConfig = model.NewTeamInfo(mainCharAvatarId)
+	player.TeamConfig = model.NewTeamInfo()
 	player.TeamConfig.AddAvatarToTeam(mainCharAvatarId, 0)
 
-	g.userManager.AddUser(player)
-
-	g.SendMsg(proto.ApiSetPlayerBornDataRsp, userId, clientSeq, new(proto.NullMsg))
-	g.OnLogin(userId, clientSeq)
-}
-
-func (g *GameManager) OnUserOffline(userId uint32) {
-	logger.LOG.Info("user offline, user id: %v", userId)
-	player := g.userManager.GetOnlineUser(userId)
-	if player == nil {
-		logger.LOG.Error("player is nil, userId: %v", userId)
-		return
-	}
-	world := g.worldManager.GetWorldByID(player.WorldId)
-	if world != nil {
-		g.UserWorldRemovePlayer(world, player)
-	}
-	player.OfflineTime = uint32(time.Now().Unix())
-	player.Online = false
-	player.TotalOnlineTime += uint32(time.Now().UnixMilli()) - player.OnlineTime
-	g.userManager.OfflineUser(player)
+	return player
 }
